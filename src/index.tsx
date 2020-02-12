@@ -3,19 +3,20 @@ import React, { useReducer } from "react";
 import ReactDOM from "react-dom";
 import { Button, BinaryToggle, TernaryToggle } from "./Button";
 
-type BtnVariant = "binary" | "ternary";
-type BtnVarianList = BtnVariant[];
-const btnVariant: BtnVarianList = ["binary", "ternary"];
+type BtnVariantList = ("binary" | "ternary")[];
+const btnVariantList: BtnVariantList = ["binary", "ternary"];
 
 function shuffleBtns() {
-    return Array(10).fill(0).map(_it => sample(btnVariant)) as BtnVarianList;
+    return Array(10)
+        .fill(0)
+        .map(_it => sample(btnVariantList)) as BtnVariantList;
 }
 
 type AppActionVariant = "shuffle-btns";
 function btnListReducer(
-    state: BtnVarianList,
+    state: BtnVariantList,
     action: AppActionVariant,
-): BtnVarianList {
+): BtnVariantList {
     switch (action) {
         case "shuffle-btns":
             return shuffleBtns();
@@ -29,13 +30,16 @@ function App() {
     return (
         <div className="flex flex-col flex-gap-1">
             <>
-                {state.map((type, index) =>
-                    type === "binary" ? (
-                        <BinaryToggle key={index} />
-                    ) : (
-                        <TernaryToggle key={index} />
-                    ),
-                )}
+                {state.map(function renderButtons(type, index) {
+                    switch (type) {
+                        case "binary":
+                            return <BinaryToggle key={index} />;
+                        case "ternary":
+                            return <TernaryToggle key={index} />;
+                        default:
+                            return null;
+                    }
+                })}
             </>
             <Button onClick={() => send("shuffle-btns")}>Shuffle</Button>
         </div>
