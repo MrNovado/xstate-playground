@@ -1,0 +1,21 @@
+button {
+    border: 1px solid;
+}
+
+button[data-state="undefined"] {
+    border: 1px dashed silver;
+    color: silver;
+}
+
+button[data-state="relaxed"] {
+    border-color: silver;
+}
+
+button[data-state="toggled"] {
+    border-color: black;
+    background-color: lightcyan;
+}
+
+button[data-state="toggled"]:before {
+    content: '✓';
+}
