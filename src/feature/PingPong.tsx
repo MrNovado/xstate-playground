@@ -5,7 +5,6 @@ import {
     spawn,
     send,
     sendParent,
-    AnyEventObject,
     Interpreter,
 } from "xstate";
 import { useMachine } from "@xstate/react";

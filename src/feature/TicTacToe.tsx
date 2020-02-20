@@ -6,9 +6,7 @@ import {
     spawn,
     send,
     sendParent,
-    Spawnable,
     Interpreter,
-    Actor,
     AnyEventObject,
 } from "xstate";
 import { useMachine } from "@xstate/react";
@@ -32,7 +30,7 @@ type TicTacToeSimpleActorMachineActions = PLAY | TURN_MADE;
 // it can literally be made as a simple callback-machine (single state),
 // but we assume the makingTurn-state is overly complicated (will take some work)
 // for the sake of exploring the actor pattern
-const ticTacToeSimpleActorMachine: Spawnable = Machine<
+const ticTacToeSimpleActorMachine = Machine<
     TicTacToeSimpleActorMachineContext,
     TicTacToeSimpleActorMachineActions
 >(
@@ -63,11 +61,10 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
                 indexesToChooseFrom: (_context, event) =>
                     event.type === "PLAY" ? event.indexesToChooseFrom : [-1],
             }),
-            turn: sendParent<
-                TicTacToeSimpleActorMachineContext,
-                AnyEventObject
-            >(
-                ({ indexesToChooseFrom }) => ({
+            turn: sendParent(
+                ({
+                    indexesToChooseFrom,
+                }: TicTacToeSimpleActorMachineContext) => ({
                     type: "TURN_MADE",
                     selectedIndex: sample(indexesToChooseFrom),
                 }),
@@ -193,16 +190,50 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                     return turnOrder === "actor1" ? "actor2" : "actor1";
                 },
             }),
-            continueOrEnd: send(({ field, turnOrder }, { selectedIndex }) => {
-                console.info(field, selectedIndex);
-                const hasFreeSpace = field.some(value => value === null);
-                return hasFreeSpace
-                    ? { type: "CONTINUE", turnOrder }
-                    : { type: "END" };
-            }),
+            continueOrEnd: send<TicTacToeMachineContext, AnyEventObject>(
+                ({ field, turnOrder }, { selectedIndex }) => {
+                    console.info(field, selectedIndex);
+                    const combinations = [
+                        [0, 1, 2],
+                        [3, 4, 5],
+                        [6, 7, 8],
+                        [0, 3, 6],
+                        [1, 4, 7],
+                        [2, 5, 8],
+                        [0, 4, 8],
+                        [2, 4, 6],
+                    ];
+                    const someCombo = combinations.find(combination => {
+                        const [a, b, c] = combination;
+                        if (
+                            field[a] &&
+                            field[a] === field[b] &&
+                            field[a] === field[c]
+                        ) {
+                            return true;
+                        }
+                        return false;
+                    });
 
-            congratulate: context =>
-                console.info("Game ended, did someone win?", context),
+                    const hasFreeSpace = field.some(value => value === null);
+                    if (someCombo || !hasFreeSpace) {
+                        return { type: "END", winCombo: someCombo };
+                    } else {
+                        return { type: "CONTINUE", turnOrder };
+                    }
+                },
+            ),
+
+            congratulate: ({ field }, { winCombo }) => {
+                console.info("Game ended!");
+                if (winCombo) {
+                    const [winCell] = winCombo;
+                    const winSymbol = field[winCell];
+                    console.info(`${winSymbol} wins!`);
+                } else {
+                    console.info("It's a draw!", field);
+                }
+            },
         },
     },
 );
@@ -213,7 +244,9 @@ export default function TicTacToe() {
         <div className="v-list-1">
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
-                    <div className="border h-10 flex flex-col justify-center items-center" key={index}>
+                    <div
+                        className="border h-10 flex flex-col justify-center items-center"
+                        key={index}>
                         {cell}
                     </div>
                 ))}

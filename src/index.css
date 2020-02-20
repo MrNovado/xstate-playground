@@ -6,12 +6,11 @@
 @tailwind components;
 @tailwind utilities;
 
-.v-list-1 > *,
-.flex-gap-1 > * {
-    margin: 0.25rem;
-}
-
 .v-list-1 {
     @apply flex;
     @apply flex-col;
+}
+
+.v-list-1 > * {
+    margin: 0.25rem;
 }
