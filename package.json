@@ -8,6 +8,7 @@
   "scripts": {
     "start": "parcel src/index.html",
     "build": "parcel build src/index.html --public-url /xstate-playground/",
+    "deploy": "gh-pages -d dist",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@types/react": "^16.9.19",
     "@types/react-dom": "^16.9.5",
     "@types/react-router-dom": "^5.1.3",
+    "gh-pages": "^2.2.0",
     "parcel-bundler": "^1.12.4",
     "typescript": "^3.7.5"
   }
