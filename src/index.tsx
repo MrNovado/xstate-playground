@@ -37,3 +37,5 @@ function App() {
 }
 
 ReactDOM.render(<App />, document.getElementById("app"));
+
+console.log("hello!");
