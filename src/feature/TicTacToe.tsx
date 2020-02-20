@@ -1,5 +1,5 @@
 import sample from "lodash.sample";
-import React from "react";
+import React, { useMemo, useEffect } from "react";
 import {
     Machine,
     assign,
@@ -79,6 +79,7 @@ type TicTacToeMachineContext = {
     actor2Ref: Interpreter<any, any, any, any>;
     turnOrder: "actor1" | "actor2";
     field: ("x" | "0" | null)[];
+    winCombo: number[] | null;
 };
 
 const ticTacToeMachine = Machine<TicTacToeMachineContext>(
@@ -92,6 +93,7 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
             actor2Ref: {} as Interpreter<any, any, any, any>,
             turnOrder: "actor1", // might be an inner context of play-state
             field: [null, null, null, null, null, null, null, null, null],
+            winCombo: null,
         },
         states: {
             init: {
@@ -142,13 +144,22 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
             },
             finale: {
                 id: "finale",
-                type: "final",
-                entry: "congratulate",
+                entry: "assignWin",
+                on: {
+                    RETRY: {
+                        target: "play",
+                        actions: "cleanState",
+                    },
+                },
             },
         },
     },
     {
         actions: {
+            cleanState: assign<TicTacToeMachineContext>({
+                field: [null, null, null, null, null, null, null, null, null],
+                winCombo: null,
+            }),
             createActors: assign<TicTacToeMachineContext>({
                 // https://github.com/davidkpiano/xstate/issues/849
                 actor1Ref: () => spawn(ticTacToeSimpleActorMachine, "actor1"),
@@ -224,7 +235,29 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 },
             ),
 
-            congratulate: ({ field }, { winCombo }) => {
+            assignWin: assign({
+                winCombo: (_context, event) => event.winCombo,
+            }),
+        },
+    },
+);
+
+export default function TicTacToe() {
+    const [state, send] = useMachine(ticTacToeMachine);
+    const { winCombo, field } = state.context;
+
+    const controls = useMemo(() => {
+        switch (true) {
+            case state.matches("finale"):
+                return <button onClick={() => send("RETRY")}>RETRY</button>;
+            default:
+                return <button onClick={() => send("START")}>START</button>;
+        }
+    }, [state]);
+
+    useEffect(
+        function congratulate() {
+            if (state.matches("finale")) {
                 console.info("Game ended!");
                 if (winCombo) {
                     const [winCell] = winCombo;
@@ -233,25 +266,29 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 } else {
                     console.info("It's a draw!", field);
                 }
-            },
+            }
         },
-    },
-);
+        [state],
+    );
 
-export default function TicTacToe() {
-    const [state, send] = useMachine(ticTacToeMachine);
     return (
         <div className="v-list-1">
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
                     <div
                         className="border h-10 flex flex-col justify-center items-center"
+                        style={{
+                            backgroundColor:
+                                winCombo && winCombo.some(c => c === index)
+                                    ? "green"
+                                    : "white",
+                        }}
                         key={index}>
                         {cell}
                     </div>
                 ))}
             </div>
-            <button onClick={() => send("START")}>START</button>
+            {controls}
         </div>
     );
 }
