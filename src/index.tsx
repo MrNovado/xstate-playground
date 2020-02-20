@@ -31,11 +31,10 @@ function App() {
                 <Route path="/x-buttons" component={StatefullUI} />
                 <Route path="/x-tictactoe" component={TicTacToe} />
                 <Route path="/x-pingpong" component={PingPong} />
+                <Route component={TicTacToe} />
             </Switch>
         </BrowserRouter>
     );
 }
 
 ReactDOM.render(<App />, document.getElementById("app"));
-
-console.log("hello!");
