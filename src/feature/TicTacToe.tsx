@@ -44,11 +44,10 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
         },
         states: {
             idle: {
-                // entry: console.warn,
                 on: {
                     PLAY: {
                         target: "makingTurn",
-                        actions: [/*console.warn,*/ "receiveGameOptions"],
+                        actions: "receiveGameOptions",
                     },
                 },
             },
@@ -57,7 +56,6 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
                 on: { "": "idle" },
             },
         },
-        // entry: console.warn,
     },
     {
         actions: {
@@ -65,14 +63,16 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
                 indexesToChooseFrom: (_context, event) =>
                     event.type === "PLAY" ? event.indexesToChooseFrom : [-1],
             }),
-            turn: context =>
-                sendParent<TicTacToeSimpleActorMachineContext, TURN_MADE>(
-                    {
-                        type: "TURN_MADE",
-                        selectedIndex: sample(context.indexesToChooseFrom),
-                    },
-                    { delay: 500 },
-                ),
+            turn: sendParent<
+                TicTacToeSimpleActorMachineContext,
+                AnyEventObject
+            >(
+                ({ indexesToChooseFrom }) => ({
+                    type: "TURN_MADE",
+                    selectedIndex: sample(indexesToChooseFrom),
+                }),
+                { delay: 500 },
+            ),
         },
     },
 );
@@ -158,30 +158,26 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 actor2Ref: () => spawn(ticTacToeSimpleActorMachine, "actor2"),
             }),
 
-            letActor1Play: ({ actor1Ref, field }) =>
-                send<TicTacToeMachineContext, any>(
-                    {
-                        type: "PLAY",
-                        indexesToChooseFrom: field
-                            .map((value, index) =>
-                                value === null ? index : null,
-                            )
-                            .filter(v => v !== null) as number[],
-                    },
-                    { to: "actor1" },
-                ),
-            letActor2Play: ({ actor2Ref, field }) =>
-                send<TicTacToeMachineContext, PLAY>(
-                    {
-                        type: "PLAY",
-                        indexesToChooseFrom: field
-                            .map((value, index) =>
-                                value === null ? index : null,
-                            )
-                            .filter(v => v !== null) as number[],
-                    },
-                    { to: actor2Ref },
-                ),
+            letActor1Play: send<TicTacToeMachineContext, AnyEventObject>(
+                ({ field }) => ({
+                    type: "PLAY",
+                    indexesToChooseFrom: field
+                        .map((value, index) => (value === null ? index : null))
+                        .filter(v => v !== null) as number[],
+                }),
+                {
+                    to: ({ actor1Ref }) => actor1Ref,
+                },
+            ),
+            letActor2Play: send<TicTacToeMachineContext, AnyEventObject>(
+                ({ field }) => ({
+                    type: "PLAY",
+                    indexesToChooseFrom: field
+                        .map((value, index) => (value === null ? index : null))
+                        .filter(v => v !== null) as number[],
+                }),
+                { to: ({ actor2Ref }) => actor2Ref },
+            ),
 
             writeActorTurn: assign({
                 // TURN_MADE
@@ -195,15 +191,14 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 turnOrder: ({ turnOrder }) =>
                     turnOrder === "actor1" ? "actor2" : "actor1",
             }),
-            continueOrEnd: ({ field, turnOrder }) => {
-                const hasFreeSpace = field.find(value => value === null);
-                if (hasFreeSpace) {
-                    send({ type: "CONTINUE", turnOrder });
-                } else {
-                    send("END");
-                }
-            },
-
+            continueOrEnd: send(({ field, turnOrder }) => {
+                console.warn(field, turnOrder)
+                const hasFreeSpace = field.some(value => value === null);
+                return hasFreeSpace
+                    ? { type: "CONTINUE", turnOrder }
+                    : { type: "END" };
+            }),
+            
             congratulate: context =>
                 console.info("Game ended, did someone win?", context),
         },
@@ -240,7 +235,7 @@ const parent = Machine(
             // ping: () => send("PING", { to: "child" }),
             // but this works!
             ping: send("PING", { to: "child" }),
-            pong: () => console.info("pong received!")
+            pong: () => console.info("pong received!"),
         },
     },
 );
@@ -250,9 +245,11 @@ export default function TicTacToe() {
     const [ping, pingSend] = useMachine(parent);
     return (
         <div className="v-list-1">
-            <div className="v-list-1">
+            <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
-                    <div key={index}>{cell}</div>
+                    <div className="border h-10" key={index}>
+                        {cell}
+                    </div>
                 ))}
             </div>
             <button onClick={() => send("START")}>START</button>
