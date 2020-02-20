@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel src/index.html",
-    "build": "parcel build src/index.html --public-url /xstate-playground/",
+    "build": "rm -rf dist && parcel build src/index.html --public-url /xstate-playground",
     "deploy": "gh-pages -d dist",
     "tsc": "tsc --noEmit"
   },
