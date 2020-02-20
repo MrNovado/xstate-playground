@@ -3,6 +3,9 @@ import ReactDOM from "react-dom";
 import { BrowserRouter, Route, Switch, Link } from "react-router-dom";
 
 import StatefullUI from "./page/StatefullUI";
+import TicTacToe from "./page/TicTacToe";
+
+const LINK_CLASSES = "flex flex-col border border-dashed border-black p-1 hover:shadow";
 
 function App() {
     return (
@@ -10,14 +13,20 @@ function App() {
             <Switch>
                 <Route exact path="/">
                     <div className="v-list-1">
-                        <span className="flex flex-col border border-solid border-black p-1 hover:shadow">
+                        <span className={LINK_CLASSES}>
                             <Link to="/x-buttons">
                                 Statefull buttons experiment
+                            </Link>
+                        </span>
+                        <span className={LINK_CLASSES}>
+                            <Link to="/x-tictactoe">
+                                Tic-tac-toe game
                             </Link>
                         </span>
                     </div>
                 </Route>
                 <Route path="/x-buttons" component={StatefullUI} />
+                <Route path="/x-tictactoe" component={TicTacToe} />
             </Switch>
         </BrowserRouter>
     );
