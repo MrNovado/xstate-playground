@@ -1,0 +1,2 @@
+button{border:1px solid}button[data-state=undefined]{border:1px dashed silver;color:silver}button[data-state=relaxed]{border-color:silver}button[data-state=toggled]{border-color:#000;background-color:#e0ffff}button[data-state=toggled]:before{content:"✓"}
+/*# sourceMappingURL=/xstate-playground/src.fa241ec7.css.map */
