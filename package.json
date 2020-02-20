@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.tsx",
   "repository": "https://github.com/MrNovado/xstate-playground.git",
+  "homepage": "https://mrnovado.github.io/xstate-playground/",
   "author": "MrNovado",
   "license": "MIT",
   "scripts": {
