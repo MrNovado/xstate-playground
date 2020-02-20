@@ -244,7 +244,7 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
 
 export default function TicTacToe() {
     const [state, send] = useMachine(ticTacToeMachine);
-    const { winCombo, field } = state.context;
+    const { winCombo, field, turnOrder } = state.context;
 
     const controls = useMemo(() => {
         switch (true) {
@@ -275,6 +275,7 @@ export default function TicTacToe() {
 
     return (
         <div className="v-list-1">
+            <h1>{turnOrder === "actor1" ? "X" : "O"}:</h1>
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
                     <div
