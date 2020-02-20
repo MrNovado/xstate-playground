@@ -71,7 +71,7 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
                     type: "TURN_MADE",
                     selectedIndex: sample(indexesToChooseFrom),
                 }),
-                { delay: 500 },
+                { delay: 300 },
             ),
         },
     },
@@ -207,44 +207,8 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
     },
 );
 
-const child = Machine({
-    initial: "await",
-    states: {
-        await: { on: { PING: "message" } },
-        message: { entry: [sendParent("PONG")], on: { "": "await" } },
-    },
-});
-
-const parent = Machine(
-    {
-        initial: "spawn",
-        states: {
-            spawn: {
-                entry: assign({ ref: () => spawn(child, "child") }),
-                on: { "": "message" },
-            },
-            message: {
-                on: {
-                    PING: { actions: "ping" },
-                    PONG: { actions: "pong" },
-                },
-            },
-        },
-    },
-    {
-        actions: {
-            // note: this wont work!
-            // ping: () => send("PING", { to: "child" }),
-            // but this works!
-            ping: send("PING", { to: "child" }),
-            pong: () => console.info("pong received!"),
-        },
-    },
-);
-
 export default function TicTacToe() {
     const [state, send] = useMachine(ticTacToeMachine);
-    const [ping, pingSend] = useMachine(parent);
     return (
         <div className="v-list-1">
             <div className="grid grid-cols-3">
@@ -255,7 +219,6 @@ export default function TicTacToe() {
                 ))}
             </div>
             <button onClick={() => send("START")}>START</button>
-            <button onClick={() => pingSend("PING")}>PING</button>
         </div>
     );
 }
