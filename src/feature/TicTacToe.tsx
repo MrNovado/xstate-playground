@@ -44,10 +44,11 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
         },
         states: {
             idle: {
+                // entry: console.warn,
                 on: {
                     PLAY: {
                         target: "makingTurn",
-                        actions: "receiveGameOptions",
+                        actions: [/*console.warn,*/ "receiveGameOptions"],
                     },
                 },
             },
@@ -56,6 +57,7 @@ const ticTacToeSimpleActorMachine: Spawnable = Machine<
                 on: { "": "idle" },
             },
         },
+        // entry: console.warn,
     },
     {
         actions: {
@@ -151,12 +153,13 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
     {
         actions: {
             createActors: assign<TicTacToeMachineContext>({
+                // https://github.com/davidkpiano/xstate/issues/849
                 actor1Ref: () => spawn(ticTacToeSimpleActorMachine, "actor1"),
                 actor2Ref: () => spawn(ticTacToeSimpleActorMachine, "actor2"),
             }),
 
             letActor1Play: ({ actor1Ref, field }) =>
-                send<TicTacToeMachineContext, PLAY>(
+                send<TicTacToeMachineContext, any>(
                     {
                         type: "PLAY",
                         indexesToChooseFrom: field
@@ -165,7 +168,7 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                             )
                             .filter(v => v !== null) as number[],
                     },
-                    { to: actor1Ref },
+                    { to: "actor1" },
                 ),
             letActor2Play: ({ actor2Ref, field }) =>
                 send<TicTacToeMachineContext, PLAY>(
@@ -207,9 +210,44 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
     },
 );
 
+const child = Machine({
+    initial: "await",
+    states: {
+        await: { on: { PING: "message" } },
+        message: { entry: [sendParent("PONG")], on: { "": "await" } },
+    },
+});
+
+const parent = Machine(
+    {
+        initial: "spawn",
+        states: {
+            spawn: {
+                entry: assign({ ref: () => spawn(child, "child") }),
+                on: { "": "message" },
+            },
+            message: {
+                on: {
+                    PING: { actions: "ping" },
+                    PONG: { actions: "pong" },
+                },
+            },
+        },
+    },
+    {
+        actions: {
+            // note: this wont work!
+            // ping: () => send("PING", { to: "child" }),
+            // but this works!
+            ping: send("PING", { to: "child" }),
+            pong: () => console.info("pong received!")
+        },
+    },
+);
+
 export default function TicTacToe() {
     const [state, send] = useMachine(ticTacToeMachine);
-    console.info(state)
+    const [ping, pingSend] = useMachine(parent);
     return (
         <div className="v-list-1">
             <div className="v-list-1">
@@ -218,6 +256,7 @@ export default function TicTacToe() {
                 ))}
             </div>
             <button onClick={() => send("START")}>START</button>
+            <button onClick={() => pingSend("PING")}>PING</button>
         </div>
     );
 }
