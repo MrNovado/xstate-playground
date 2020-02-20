@@ -1,48 +1,25 @@
-import sample from "lodash.sample";
-import React, { useReducer } from "react";
+import React from "react";
 import ReactDOM from "react-dom";
-import { Button, BinaryToggle, TernaryToggle } from "./Button";
+import { BrowserRouter, Route, Switch, Link } from "react-router-dom";
 
-type BtnVariantList = ("binary" | "ternary")[];
-const btnVariantList: BtnVariantList = ["binary", "ternary"];
-
-function shuffleBtns() {
-    return Array(10)
-        .fill(0)
-        .map(_it => sample(btnVariantList)) as BtnVariantList;
-}
-
-type AppActionVariant = "shuffle-btns";
-function btnListReducer(
-    state: BtnVariantList,
-    action: AppActionVariant,
-): BtnVariantList {
-    switch (action) {
-        case "shuffle-btns":
-            return shuffleBtns();
-        default:
-            return state;
-    }
-}
+import StatefullUI from "./page/StatefullUI";
 
 function App() {
-    const [state, send] = useReducer(btnListReducer, shuffleBtns());
     return (
-        <div className="flex flex-col flex-gap-1">
-            <>
-                {state.map(function renderButtons(type, index) {
-                    switch (type) {
-                        case "binary":
-                            return <BinaryToggle key={index} />;
-                        case "ternary":
-                            return <TernaryToggle key={index} />;
-                        default:
-                            return null;
-                    }
-                })}
-            </>
-            <Button onClick={() => send("shuffle-btns")}>Shuffle</Button>
-        </div>
+        <BrowserRouter>
+            <Switch>
+                <Route exact path="/">
+                    <div className="v-list-1">
+                        <span className="flex flex-col border border-solid border-black p-1 hover:shadow">
+                            <Link to="/x-buttons">
+                                Statefull buttons experiment
+                            </Link>
+                        </span>
+                    </div>
+                </Route>
+                <Route path="/x-buttons" component={StatefullUI} />
+            </Switch>
+        </BrowserRouter>
     );
 }
 

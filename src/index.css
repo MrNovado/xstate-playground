@@ -1,7 +1,17 @@
+/**
+* CSS Intellisence is incomplete, hence the unknownRuleAt warning
+* https://stackoverflow.com/questions/47607602/how-to-add-a-tailwind-css-rule-to-css-checker
+*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+.v-list-1 > *,
 .flex-gap-1 > * {
     margin: 0.25rem;
+}
+
+.v-list-1 {
+    @apply flex;
+    @apply flex-col;
 }
