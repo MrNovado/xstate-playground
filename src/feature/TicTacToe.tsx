@@ -188,17 +188,19 @@ const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 ],
             }),
             switchTurn: assign({
-                turnOrder: ({ turnOrder }) =>
-                    turnOrder === "actor1" ? "actor2" : "actor1",
+                turnOrder: ({ turnOrder }) => {
+                    console.info("turn is made by", turnOrder);
+                    return turnOrder === "actor1" ? "actor2" : "actor1";
+                },
             }),
-            continueOrEnd: send(({ field, turnOrder }) => {
-                console.warn(field, turnOrder)
+            continueOrEnd: send(({ field, turnOrder }, { selectedIndex }) => {
+                console.info(field, selectedIndex);
                 const hasFreeSpace = field.some(value => value === null);
                 return hasFreeSpace
                     ? { type: "CONTINUE", turnOrder }
                     : { type: "END" };
             }),
-            
+
             congratulate: context =>
                 console.info("Game ended, did someone win?", context),
         },
@@ -247,7 +249,7 @@ export default function TicTacToe() {
         <div className="v-list-1">
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
-                    <div className="border h-10" key={index}>
+                    <div className="border h-10 flex flex-col justify-center items-center" key={index}>
                         {cell}
                     </div>
                 ))}
