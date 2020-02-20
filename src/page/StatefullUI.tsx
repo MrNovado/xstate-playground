@@ -1,6 +1,11 @@
 import React from "react";
+import { PageContainer } from "./_page";
 import StatefullButtons from "../feature/StatefullButtons";
 
 export default function StatefullUI() {
-    return <StatefullButtons />;
+    return (
+        <PageContainer>
+            <StatefullButtons />
+        </PageContainer>
+    );
 }

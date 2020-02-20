@@ -1,6 +1,11 @@
 import React from "react";
+import { PageContainer } from "./_page";
 import TicTacToe from "../feature/TicTacToe";
 
 export default function TicTacToePage() {
-    return <TicTacToe />;
+    return (
+        <PageContainer>
+            <TicTacToe />
+        </PageContainer>
+    );
 }
