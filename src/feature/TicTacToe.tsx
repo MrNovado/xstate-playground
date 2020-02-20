@@ -250,8 +250,10 @@ export default function TicTacToe() {
         switch (true) {
             case state.matches("finale"):
                 return <button onClick={() => send("RETRY")}>RETRY</button>;
-            default:
+            case state.matches("init"):
                 return <button onClick={() => send("START")}>START</button>;
+            default:
+                return <button disabled className="opacity-50">IN PROGRESS</button>;
         }
     }, [state]);
 
