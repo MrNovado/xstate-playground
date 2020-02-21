@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { BrowserRouter, Route, Switch, Link } from "react-router-dom";
+import { HashRouter, Route, Switch, Link } from "react-router-dom";
 
 import StatefullUI from "./page/StatefullUI";
 import TicTacToe from "./page/TicTacToe";
@@ -11,7 +11,7 @@ const LINK_CLASSES =
 
 function App() {
     return (
-        <BrowserRouter>
+        <HashRouter basename="/">
             <Switch>
                 <Route exact path="/">
                     <div className="v-list-1">
@@ -33,7 +33,7 @@ function App() {
                 <Route path="/x-pingpong" component={PingPong} />
                 <Route component={TicTacToe} />
             </Switch>
-        </BrowserRouter>
+        </HashRouter>
     );
 }
 
