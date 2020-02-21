@@ -31,7 +31,6 @@ function App() {
                 <Route path="/x-buttons" component={StatefullUI} />
                 <Route path="/x-tictactoe" component={TicTacToe} />
                 <Route path="/x-pingpong" component={PingPong} />
-                <Route component={TicTacToe} />
             </Switch>
         </HashRouter>
     );
