@@ -7,12 +7,12 @@ interface BinarySchema {
     };
 }
 
-type BinaryEvents = { type: "TOGGLE" };
+type BinaryEvent = { type: "TOGGLE" };
 
 export const binaryToggleMachine = Machine<
     undefined,
     BinarySchema,
-    BinaryEvents
+    BinaryEvent
 >({
     id: "binaryToggleMachine",
     initial: "relaxed",
@@ -38,12 +38,12 @@ interface TernarySchema {
     };
 }
 
-type TernaryEvents = { type: "ENABLE" } | { type: "TOGGLE" };
+type TernaryEvent = { type: "ENABLE" } | { type: "TOGGLE" };
 
 export const ternaryToggleMachine = Machine<
     undefined,
     TernarySchema,
-    TernaryEvents
+    TernaryEvent
 >({
     id: "ternaryToggleMachine",
     initial: "undefined",
@@ -76,7 +76,7 @@ interface ProgressiveSchema {
     };
 }
 
-type ProgressiveEvents = { type: "" }
+type ProgressiveEvent = { type: "" }
 
 export const progressiveToggleMachine = Machine<
     undefined,

@@ -1,15 +1,17 @@
 import React from "react";
-import {
-    Machine,
-    assign,
-    spawn,
-    send,
-    sendParent,
-    Interpreter,
-} from "xstate";
+import { Machine, assign, spawn, send, sendParent, Spawnable, Actor } from "xstate";
 import { useMachine } from "@xstate/react";
 
-const child = Machine({
+interface ChildSchema {
+    states: {
+        await: {};
+        message: {};
+    };
+}
+
+type ChildEvent = { type: "PING" };
+
+const child = Machine<undefined, ChildSchema, ChildEvent>({
     initial: "await",
     states: {
         await: { on: { PING: "message" } },
@@ -20,10 +22,25 @@ const child = Machine({
     },
 });
 
-const parent = Machine(
+interface ParentSchema {
+    states: {
+        spawn: {};
+        message: {};
+    };
+}
+
+type ParentEvent = { type: "PING", to: Actor } | { type: "PONG" };
+
+interface ParentContext {
+    // https://github.com/davidkpiano/xstate/issues/849
+    ref: Actor;
+    countPongs: number;
+}
+
+const parent = Machine<ParentContext, ParentSchema, ParentEvent>(
     {
         context: {
-            ref: {} as Interpreter<any, any, any, any>,
+            ref: {} as Actor,
             countPongs: 0,
         },
         initial: "spawn",
@@ -43,7 +60,7 @@ const parent = Machine(
     {
         actions: {
             spawnChild: assign({
-                ref: () => spawn(child, "child"),
+                ref: () => spawn((child as Spawnable), "child"),
                 countPongs: 0,
             }),
             ping: send("PING", { to: ({ ref }) => ref }),
