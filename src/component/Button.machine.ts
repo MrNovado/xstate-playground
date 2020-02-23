@@ -1,6 +1,19 @@
 import { Machine } from "xstate";
 
-export const binaryToggleMachine = Machine({
+interface BinarySchema {
+    states: {
+        relaxed: {};
+        toggled: {};
+    };
+}
+
+type BinaryEvents = { type: "TOGGLE" };
+
+export const binaryToggleMachine = Machine<
+    undefined,
+    BinarySchema,
+    BinaryEvents
+>({
     id: "binaryToggleMachine",
     initial: "relaxed",
     states: {
@@ -17,7 +30,21 @@ export const binaryToggleMachine = Machine({
     },
 });
 
-export const ternaryToggleMachine = Machine({
+interface TernarySchema {
+    states: {
+        undefined: {};
+        relaxed: {};
+        toggled: {};
+    };
+}
+
+type TernaryEvents = { type: "ENABLE" } | { type: "TOGGLE" };
+
+export const ternaryToggleMachine = Machine<
+    undefined,
+    TernarySchema,
+    TernaryEvents
+>({
     id: "ternaryToggleMachine",
     initial: "undefined",
     states: {
@@ -39,9 +66,25 @@ export const ternaryToggleMachine = Machine({
     },
 });
 
-export const progressiveToggleMachine = Machine({
+interface ProgressiveSchema {
+    states: {
+        disabled: {};
+        enabled: {};
+        pending: {};
+        resolved: {};
+        rejected: {};
+    };
+}
+
+type ProgressiveEvents = { type: "" }
+
+export const progressiveToggleMachine = Machine<
+    undefined,
+    ProgressiveSchema,
+    any
+>({
     id: "progressiveToggleMachine",
-    initial: "",
+    initial: "disabled",
     states: {
         disabled: {},
         enabled: {},
