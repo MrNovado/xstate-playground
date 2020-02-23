@@ -1,31 +1,58 @@
+import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
+
 import {
-    Machine,
-    assign,
-    spawn,
-    send,
-    Interpreter,
-    AnyEventObject,
-} from "xstate";
+    ticTacToeSimpleActorMachine,
+    TicTacToeSimpleActorMachineActions,
+} from "./TicTacToe.machine.actor";
 
-import { ticTacToeSimpleActorMachine } from "./TicTacToe.machine.actor";
-
-type TicTacToeMachineContext = {
-    actor1Ref: Interpreter<any, any, any, any>;
-    actor2Ref: Interpreter<any, any, any, any>;
+interface TicTacToeMachineContext {
+    actor1Ref: Actor;
+    actor2Ref: Actor;
     turnOrder: "actor1" | "actor2";
     field: ("x" | "0" | null)[];
     winCombo: number[] | null;
-};
+}
 
-export const ticTacToeMachine = Machine<TicTacToeMachineContext>(
+interface TicTacToeMachineSchema {
+    states: {
+        init: {};
+        play: {
+            states: {
+                turn: {
+                    states: {
+                        actor1: {};
+                        actor2: {};
+                    };
+                };
+                evaluate: {};
+            };
+        };
+        finale: {};
+    };
+}
+
+type TicTacToeMachineEvent =
+    | TicTacToeSimpleActorMachineActions
+    | { type: "START" }
+    | { type: "CONTINUE"; turnOrder: "actor1" | "actor2" }
+    | { type: "END"; winCombo: number[] | null }
+    | { type: "RETRY" }
+    | { type: "duck" };
+
+export const ticTacToeMachine = Machine<
+    TicTacToeMachineContext,
+    TicTacToeMachineSchema,
+    TicTacToeMachineEvent
+>(
     {
         id: "ticTacToeMachine",
         initial: "init",
         context: {
             // asserting an actor here
             // because it will be the first thing we'll create
-            actor1Ref: {} as Interpreter<any, any, any, any>,
-            actor2Ref: {} as Interpreter<any, any, any, any>,
+            // also https://github.com/davidkpiano/xstate/issues/849
+            actor1Ref: {} as Actor,
+            actor2Ref: {} as Actor,
             turnOrder: "actor1", // might be an inner context of play-state
             field: [null, null, null, null, null, null, null, null, null],
             winCombo: null,
@@ -91,17 +118,22 @@ export const ticTacToeMachine = Machine<TicTacToeMachineContext>(
     },
     {
         actions: {
-            cleanState: assign<TicTacToeMachineContext>({
+            cleanState: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
                 field: [null, null, null, null, null, null, null, null, null],
                 winCombo: null,
             }),
-            createActors: assign<TicTacToeMachineContext>({
+            createActors: assign<
+                TicTacToeMachineContext,
+                TicTacToeMachineEvent
+            >({
                 // https://github.com/davidkpiano/xstate/issues/849
-                actor1Ref: () => spawn(ticTacToeSimpleActorMachine, "actor1"),
-                actor2Ref: () => spawn(ticTacToeSimpleActorMachine, "actor2"),
+                actor1Ref: () =>
+                    spawn(ticTacToeSimpleActorMachine as Spawnable, "actor1"),
+                actor2Ref: () =>
+                    spawn(ticTacToeSimpleActorMachine as Spawnable, "actor2"),
             }),
 
-            letActor1Play: send<TicTacToeMachineContext, AnyEventObject>(
+            letActor1Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }) => ({
                     type: "PLAY",
                     indexesToChooseFrom: field
@@ -112,7 +144,7 @@ export const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                     to: ({ actor1Ref }) => actor1Ref,
                 },
             ),
-            letActor2Play: send<TicTacToeMachineContext, AnyEventObject>(
+            letActor2Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }) => ({
                     type: "PLAY",
                     indexesToChooseFrom: field
@@ -122,23 +154,36 @@ export const ticTacToeMachine = Machine<TicTacToeMachineContext>(
                 { to: ({ actor2Ref }) => actor2Ref },
             ),
 
-            writeActorTurn: assign({
+            writeActorTurn: assign<
+                TicTacToeMachineContext,
+                TicTacToeMachineEvent
+            >({
                 // TURN_MADE
-                field: ({ field, turnOrder }, { selectedIndex }) => [
-                    ...field.slice(0, selectedIndex),
-                    turnOrder === "actor1" ? "x" : "0",
-                    ...field.slice(selectedIndex + 1, field.length),
-                ],
+                field: ({ field, turnOrder }, event) =>
+                    event.type === "TURN_MADE"
+                        ? [
+                              ...field.slice(0, event.selectedIndex),
+                              turnOrder === "actor1" ? "x" : "0",
+                              ...field.slice(
+                                  event.selectedIndex + 1,
+                                  field.length,
+                              ),
+                          ]
+                        : field,
             }),
-            switchTurn: assign({
+            switchTurn: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
                 turnOrder: ({ turnOrder }) => {
                     console.info("turn is made by", turnOrder);
                     return turnOrder === "actor1" ? "actor2" : "actor1";
                 },
             }),
-            continueOrEnd: send<TicTacToeMachineContext, AnyEventObject>(
-                ({ field, turnOrder }, { selectedIndex }) => {
-                    console.info(field, selectedIndex);
+            continueOrEnd: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
+                ({ field, turnOrder }, event) => {
+                    if (event.type !== "TURN_MADE") {
+                        return { type: "duck" };
+                    }
+
+                    console.info(field, event.selectedIndex);
                     const combinations = [
                         [0, 1, 2],
                         [3, 4, 5],
@@ -163,15 +208,16 @@ export const ticTacToeMachine = Machine<TicTacToeMachineContext>(
 
                     const hasFreeSpace = field.some(value => value === null);
                     if (someCombo || !hasFreeSpace) {
-                        return { type: "END", winCombo: someCombo };
+                        return { type: "END", winCombo: someCombo || null };
                     } else {
                         return { type: "CONTINUE", turnOrder };
                     }
                 },
             ),
 
-            assignWin: assign({
-                winCombo: (_context, event) => event.winCombo,
+            assignWin: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
+                winCombo: ({ winCombo }, event) =>
+                    event.type === "END" ? event.winCombo : winCombo,
             }),
         },
     },

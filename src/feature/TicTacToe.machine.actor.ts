@@ -1,27 +1,27 @@
 import sample from "lodash.sample";
-import { Machine, assign, sendParent, AnyEventObject } from "xstate";
+import { Machine, assign, sendParent } from "xstate";
 
-type TicTacToeSimpleActorMachineContext = {
-    indexesToChooseFrom: number[];
-};
+interface TicTacToeSimpleActorMachineSchema {
+    states: {
+        idle: {};
+        makingTurn: {};
+    };
+}
 
-interface PLAY extends AnyEventObject {
-    type: "PLAY";
+interface TicTacToeSimpleActorMachineContext {
     indexesToChooseFrom: number[];
 }
 
-interface TURN_MADE extends AnyEventObject {
-    type: "TURN_MADE";
-    selectedIndex: number;
-}
-
-type TicTacToeSimpleActorMachineActions = PLAY | TURN_MADE;
+export type TicTacToeSimpleActorMachineActions =
+    | { type: "PLAY"; indexesToChooseFrom: number[] }
+    | { type: "TURN_MADE"; selectedIndex: number };
 
 // it can literally be made as a simple callback-machine (single state),
 // but we assume the makingTurn-state is overly complicated (will take some work)
 // for the sake of exploring the actor pattern
 export const ticTacToeSimpleActorMachine = Machine<
     TicTacToeSimpleActorMachineContext,
+    TicTacToeSimpleActorMachineSchema,
     TicTacToeSimpleActorMachineActions
 >(
     {
