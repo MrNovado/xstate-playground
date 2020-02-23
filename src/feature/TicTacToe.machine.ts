@@ -2,14 +2,17 @@ import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
 
 import {
     ticTacToeSimpleActorMachine,
-    TicTacToeSimpleActorMachineActions,
+    ticTacToeGreedyActorMachine,
+    TicTacToeSimpleActorMachineEvent,
 } from "./TicTacToe.machine.actor";
 
 interface TicTacToeMachineContext {
     actor1Ref: Actor;
     actor2Ref: Actor;
-    turnOrder: "actor1" | "actor2";
     field: ("x" | "0" | null)[];
+    // win-combo makes sence only as a computed state;
+    // or at the very least -- as a local context of the finale-state;
+    // (no idea how to type local context though...)
     winCombo: number[] | null;
 }
 
@@ -32,9 +35,9 @@ interface TicTacToeMachineSchema {
 }
 
 type TicTacToeMachineEvent =
-    | TicTacToeSimpleActorMachineActions
+    | TicTacToeSimpleActorMachineEvent
     | { type: "START" }
-    | { type: "CONTINUE"; turnOrder: "actor1" | "actor2" }
+    | { type: "CONTINUE"; turnOrder: "x" | "0" }
     | { type: "END"; winCombo: number[] | null }
     | { type: "RETRY" }
     | { type: "duck" };
@@ -53,7 +56,6 @@ export const ticTacToeMachine = Machine<
             // also https://github.com/davidkpiano/xstate/issues/849
             actor1Ref: {} as Actor,
             actor2Ref: {} as Actor,
-            turnOrder: "actor1", // might be an inner context of play-state
             field: [null, null, null, null, null, null, null, null, null],
             winCombo: null,
         },
@@ -71,32 +73,54 @@ export const ticTacToeMachine = Machine<
                         states: {
                             actor1: {
                                 entry: "letActor1Play",
-                                on: { TURN_MADE: "#evaluate" },
+                                on: {
+                                    TURN_MADE: [
+                                        {
+                                            target: "#evaluate",
+                                            cond: (
+                                                { field },
+                                                { selectedIndex },
+                                            ) => field[selectedIndex] === null,
+                                        },
+                                        {
+                                            target: "actor1",
+                                        },
+                                    ],
+                                },
                             },
                             actor2: {
                                 entry: "letActor2Play",
-                                on: { TURN_MADE: "#evaluate" },
+                                on: {
+                                    TURN_MADE: [
+                                        {
+                                            target: "#evaluate",
+                                            cond: (
+                                                { field },
+                                                { selectedIndex },
+                                            ) => field[selectedIndex] === null,
+                                        },
+                                        {
+                                            target: "actor2",
+                                        },
+                                    ],
+                                },
                             },
                         },
                     },
                     evaluate: {
                         id: "evaluate",
-                        entry: [
-                            "writeActorTurn",
-                            "switchTurn",
-                            "continueOrEnd",
-                        ],
+                        entry: ["writeActorTurn", "continueOrEnd"],
                         on: {
                             CONTINUE: [
                                 {
                                     target: "turn.actor1",
                                     cond: (_context, { turnOrder }) =>
-                                        turnOrder === "actor1",
+                                        turnOrder === "x",
                                 },
                                 {
                                     target: "turn.actor2",
                                     cond: (_context, { turnOrder }) =>
-                                        turnOrder === "actor2",
+                                        turnOrder === "0",
                                 },
                             ],
                             END: "#finale",
@@ -130,13 +154,14 @@ export const ticTacToeMachine = Machine<
                 actor1Ref: () =>
                     spawn(ticTacToeSimpleActorMachine as Spawnable, "actor1"),
                 actor2Ref: () =>
-                    spawn(ticTacToeSimpleActorMachine as Spawnable, "actor2"),
+                    spawn(ticTacToeGreedyActorMachine as Spawnable, "actor2"),
             }),
 
             letActor1Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }) => ({
                     type: "PLAY",
                     field,
+                    role: "x",
                 }),
                 {
                     to: ({ actor1Ref }) => actor1Ref,
@@ -146,6 +171,7 @@ export const ticTacToeMachine = Machine<
                 ({ field }) => ({
                     type: "PLAY",
                     field,
+                    role: "0",
                 }),
                 { to: ({ actor2Ref }) => actor2Ref },
             ),
@@ -155,11 +181,11 @@ export const ticTacToeMachine = Machine<
                 TicTacToeMachineContext,
                 TicTacToeMachineEvent
             >({
-                field: ({ field, turnOrder }, event) =>
+                field: ({ field }, event) =>
                     event.type === "TURN_MADE"
                         ? [
                               ...field.slice(0, event.selectedIndex),
-                              turnOrder === "actor1" ? "x" : "0",
+                              getTurnOrder(field),
                               ...field.slice(
                                   event.selectedIndex + 1,
                                   field.length,
@@ -167,14 +193,8 @@ export const ticTacToeMachine = Machine<
                           ]
                         : field,
             }),
-            switchTurn: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
-                turnOrder: ({ turnOrder }) => {
-                    console.info("turn is made by", turnOrder);
-                    return turnOrder === "actor1" ? "actor2" : "actor1";
-                },
-            }),
             continueOrEnd: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
-                ({ field, turnOrder }, event) => {
+                ({ field }, event) => {
                     if (event.type !== "TURN_MADE") {
                         return { type: "duck" };
                     }
@@ -206,7 +226,10 @@ export const ticTacToeMachine = Machine<
                     if (someCombo || !hasFreeSpace) {
                         return { type: "END", winCombo: someCombo || null };
                     } else {
-                        return { type: "CONTINUE", turnOrder };
+                        return {
+                            type: "CONTINUE",
+                            turnOrder: getTurnOrder(field),
+                        };
                     }
                 },
             ),
@@ -219,3 +242,7 @@ export const ticTacToeMachine = Machine<
         },
     },
 );
+
+export function getTurnOrder(field: ("x" | "0" | null)[]) {
+    return field.filter(v => v === null).length % 2 === 0 ? "0" : "x";
+}

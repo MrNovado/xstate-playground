@@ -1,10 +1,28 @@
 import React, { useMemo, useEffect } from "react";
 import { useMachine } from "@xstate/react";
-import { ticTacToeMachine } from "./TicTacToe.machine";
+import { ticTacToeMachine, getTurnOrder } from "./TicTacToe.machine";
 
 export default function TicTacToe() {
     const [state, send] = useMachine(ticTacToeMachine);
-    const { winCombo, field, turnOrder } = state.context;
+    const { winCombo, field } = state.context;
+
+    // memo actually doesnt do anything here,
+    // but wrap switch statements nicely
+    const turnOrder = useMemo(() => {
+        switch (true) {
+            case state.matches("finale"): {
+                if (winCombo) {
+                    const [winCell] = winCombo;
+                    const winSymbol = field[winCell];
+                    return <h1>{`${winSymbol} wins!`}</h1>;
+                } else {
+                    return <h1>It's a draw!</h1>;
+                }
+            }
+            default:
+                return <h1>{getTurnOrder(field)}:</h1>;
+        }
+    }, [state]);
 
     const controls = useMemo(() => {
         switch (true) {
@@ -39,7 +57,7 @@ export default function TicTacToe() {
 
     return (
         <div className="v-list-1">
-            <h1>{turnOrder === "actor1" ? "X" : "O"}:</h1>
+            {turnOrder}
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
                     <div
