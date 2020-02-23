@@ -9,11 +9,11 @@ interface TicTacToeSimpleActorMachineSchema {
 }
 
 interface TicTacToeSimpleActorMachineContext {
-    indexesToChooseFrom: number[];
+    field: ("x" | "0" | null)[];
 }
 
 export type TicTacToeSimpleActorMachineActions =
-    | { type: "PLAY"; indexesToChooseFrom: number[] }
+    | { type: "PLAY"; field: ("x" | "0" | null)[] }
     | { type: "TURN_MADE"; selectedIndex: number };
 
 // it can literally be made as a simple callback-machine (single state),
@@ -28,7 +28,7 @@ export const ticTacToeSimpleActorMachine = Machine<
         id: "ticTacToeSimpleActorMachine",
         initial: "idle",
         context: {
-            indexesToChooseFrom: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+            field: [null, null, null, null, null, null, null, null, null],
         },
         states: {
             idle: {
@@ -48,15 +48,19 @@ export const ticTacToeSimpleActorMachine = Machine<
     {
         actions: {
             receiveGameOptions: assign({
-                indexesToChooseFrom: (_context, event) =>
-                    event.type === "PLAY" ? event.indexesToChooseFrom : [-1],
+                field: ({ field }, event) =>
+                    event.type === "PLAY" ? event.field : field,
             }),
             turn: sendParent(
-                ({
-                    indexesToChooseFrom,
-                }: TicTacToeSimpleActorMachineContext) => ({
+                ({ field }: TicTacToeSimpleActorMachineContext) => ({
                     type: "TURN_MADE",
-                    selectedIndex: sample(indexesToChooseFrom),
+                    selectedIndex: sample(
+                        field
+                            .map((value, index) =>
+                                value === null ? index : null,
+                            )
+                            .filter(v => v !== null) as number[],
+                    ),
                 }),
                 { delay: 300 },
             ),

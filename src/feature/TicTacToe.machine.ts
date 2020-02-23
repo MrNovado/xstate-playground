@@ -136,9 +136,7 @@ export const ticTacToeMachine = Machine<
             letActor1Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }) => ({
                     type: "PLAY",
-                    indexesToChooseFrom: field
-                        .map((value, index) => (value === null ? index : null))
-                        .filter(v => v !== null) as number[],
+                    field,
                 }),
                 {
                     to: ({ actor1Ref }) => actor1Ref,
@@ -147,18 +145,16 @@ export const ticTacToeMachine = Machine<
             letActor2Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }) => ({
                     type: "PLAY",
-                    indexesToChooseFrom: field
-                        .map((value, index) => (value === null ? index : null))
-                        .filter(v => v !== null) as number[],
+                    field,
                 }),
                 { to: ({ actor2Ref }) => actor2Ref },
             ),
 
+            // TURN_MADE -begin
             writeActorTurn: assign<
                 TicTacToeMachineContext,
                 TicTacToeMachineEvent
             >({
-                // TURN_MADE
                 field: ({ field, turnOrder }, event) =>
                     event.type === "TURN_MADE"
                         ? [
@@ -214,6 +210,7 @@ export const ticTacToeMachine = Machine<
                     }
                 },
             ),
+            // TURN_MADE -end
 
             assignWin: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
                 winCombo: ({ winCombo }, event) =>
