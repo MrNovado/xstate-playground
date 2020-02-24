@@ -12,7 +12,7 @@ interface TicTacToeSimpleActorMachineContext {}
 export type TicTacToeSimpleActorMachineEvent =
     | { type: "PLAY"; field: ("x" | "0" | null)[]; role: "x" | "0" }
     | { type: "TURN_MADE"; selectedIndex: number }
-    | { type: "duck" };
+    | { type: "__ignore__" };
 
 // it can literally be made as a simple callback-machine (single state),
 // but we assume the makingTurn-state is overly complicated (will take some work)
@@ -70,17 +70,24 @@ export const ticTacToeSimpleActorMachine = Machine<
         turn: sendParent(
             // warn: no idea why TS cannot infer it as a SendExpr
             function play(_, event) {
-                return event.type === "PLAY"
-                    ? {
-                          type: "TURN_MADE",
-                          // warn: no guard checks for selectedIndex for whatever reason!
-                          // supposed to be a number, but wont argue against any other type!?
-                          selectedIndex: ticTacToeSimpleActorPlay(
-                              event.field,
-                              event.role,
-                          ),
-                      }
-                    : { type: "duck" };
+                switch (event.type) {
+                    case "PLAY":
+                        const { field, role } = event;
+                        console.group(`simple-${role}`);
+                        const selectedIndex = ticTacToeSimpleActorPlay(
+                            field,
+                            role,
+                        );
+                        console.groupEnd();
+                        return {
+                            type: "TURN_MADE",
+                            // warn: no guard checks for selectedIndex for whatever reason!
+                            // supposed to be a number, but wont argue against any other type!?
+                            selectedIndex,
+                        };
+                    default:
+                        return { type: "__ignore__" };
+                }
             } as SendExpr<
                 TicTacToeSimpleActorMachineContext,
                 TicTacToeSimpleActorMachineEvent
@@ -225,7 +232,7 @@ export const ticTacToeGreedyActorMachine = Machine<
                         };
                     }
                     default:
-                        return { type: "duck" };
+                        return { type: "__ignore__" };
                 }
             } as SendExpr<
                 TicTacToeSimpleActorMachineContext,

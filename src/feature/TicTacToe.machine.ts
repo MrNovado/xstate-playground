@@ -1,3 +1,4 @@
+import sample from "lodash.sample";
 import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
 
 import {
@@ -6,7 +7,15 @@ import {
     TicTacToeSimpleActorMachineEvent,
 } from "./TicTacToe.machine.actor";
 
+type TicTacToeMachineActorTypes = "greedy" | "simple";
+type TicTacToeMachineActorTypesContext = [
+    TicTacToeMachineActorTypes,
+    TicTacToeMachineActorTypes,
+];
+const ticTacToeMachineActorTypes: ["greedy", "simple"] = ["greedy", "simple"];
+
 interface TicTacToeMachineContext {
+    actorTypes: TicTacToeMachineActorTypesContext;
     actor1Ref: Actor;
     actor2Ref: Actor;
     field: ("x" | "0" | null)[];
@@ -40,7 +49,12 @@ type TicTacToeMachineEvent =
     | { type: "CONTINUE"; turnOrder: "x" | "0" }
     | { type: "END"; winCombo: number[] | null }
     | { type: "RETRY" }
-    | { type: "duck" };
+    | {
+          type: "BEHAVIOR";
+          actor: "x" | "0";
+          actorType: TicTacToeMachineActorTypes;
+      }
+    | { type: "__ignore__" };
 
 export const ticTacToeMachine = Machine<
     TicTacToeMachineContext,
@@ -51,6 +65,10 @@ export const ticTacToeMachine = Machine<
         id: "ticTacToeMachine",
         initial: "init",
         context: {
+            actorTypes: [
+                sample(ticTacToeMachineActorTypes),
+                sample(ticTacToeMachineActorTypes),
+            ] as TicTacToeMachineActorTypesContext,
             // asserting an actor here
             // because it will be the first thing we'll create
             // also https://github.com/davidkpiano/xstate/issues/849
@@ -139,22 +157,57 @@ export const ticTacToeMachine = Machine<
                 },
             },
         },
+        on: {
+            BEHAVIOR: { actions: ["changeBehavior", "createActors"] },
+        },
     },
     {
         actions: {
             cleanState: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
                 field: [null, null, null, null, null, null, null, null, null],
-                winCombo: null,
+                winCombo: () => {
+                    console.group("Round");
+                    return null;
+                },
+            }),
+            changeBehavior: assign<
+                TicTacToeMachineContext,
+                TicTacToeMachineEvent
+            >({
+                actorTypes: ({ actorTypes }, event) => {
+                    const newTypes =
+                        event.type === "BEHAVIOR"
+                            ? ([
+                                  event.actor === "x"
+                                      ? event.actorType
+                                      : actorTypes[0],
+                                  event.actor === "0"
+                                      ? event.actorType
+                                      : actorTypes[1],
+                              ] as TicTacToeMachineActorTypesContext)
+                            : actorTypes;
+                    return newTypes;
+                },
             }),
             createActors: assign<
                 TicTacToeMachineContext,
                 TicTacToeMachineEvent
             >({
                 // https://github.com/davidkpiano/xstate/issues/849
-                actor1Ref: () =>
-                    spawn(ticTacToeSimpleActorMachine as Spawnable, "actor1"),
-                actor2Ref: () =>
-                    spawn(ticTacToeGreedyActorMachine as Spawnable, "actor2"),
+                actor1Ref: ({ actorTypes }) =>
+                    spawn(
+                        (actorTypes[0] === "simple"
+                            ? ticTacToeSimpleActorMachine
+                            : ticTacToeGreedyActorMachine) as Spawnable,
+                        "actor1",
+                    ),
+                actor2Ref: ({ actorTypes }) =>
+                    spawn(
+                        (actorTypes[1] === "simple"
+                            ? ticTacToeSimpleActorMachine
+                            : ticTacToeGreedyActorMachine) as Spawnable,
+                        "actor2",
+                    ),
             }),
 
             letActor1Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
@@ -196,7 +249,7 @@ export const ticTacToeMachine = Machine<
             continueOrEnd: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }, event) => {
                     if (event.type !== "TURN_MADE") {
-                        return { type: "duck" };
+                        return { type: "__ignore__" };
                     }
 
                     console.info(field, event.selectedIndex);
@@ -236,8 +289,10 @@ export const ticTacToeMachine = Machine<
             // TURN_MADE -end
 
             assignWin: assign<TicTacToeMachineContext, TicTacToeMachineEvent>({
-                winCombo: ({ winCombo }, event) =>
-                    event.type === "END" ? event.winCombo : winCombo,
+                winCombo: ({ winCombo }, event) => {
+                    console.groupEnd();
+                    return event.type === "END" ? event.winCombo : winCombo;
+                },
             }),
         },
     },
