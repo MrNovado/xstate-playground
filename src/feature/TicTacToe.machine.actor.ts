@@ -1,6 +1,12 @@
 import sample from "lodash.sample";
 import { Machine, MachineConfig, SendExpr, sendParent } from "xstate";
 
+/**
+ * ============================================================================
+ * IMPERATIVE ACTORS
+ * ============================================================================
+ */
+
 interface TicTacToeSimpleActorMachineSchema {
     states: {
         playing: {};
@@ -15,7 +21,7 @@ export type TicTacToeSimpleActorMachineEvent =
     | { type: "__ignore__" };
 
 // it can literally be made as a simple callback-machine (single state),
-// but we assume the makingTurn-state is overly complicated (will take some work)
+// but we assume the playing-state is overly complicated (will take some work)
 // for the sake of exploring the actor pattern
 const ticTacToeSimpleActorMachineConfig: MachineConfig<
     TicTacToeSimpleActorMachineContext,
@@ -242,3 +248,80 @@ export const ticTacToeGreedyActorMachine = Machine<
         ),
     },
 });
+
+/**
+ * ============================================================================
+ * DECLARATIVE ACTORS
+ * ============================================================================
+ */
+
+// [0,1,2]
+// [3,4,5]
+// [6,7,8]
+
+interface SimpleDeclarativeActorSchema {
+    // [0, 1, 2],
+    // [0, 3, 6],
+    // [0, 4, 8],
+    // [1, 4, 7],
+    // [2, 5, 8],
+    // [2, 4, 6],
+    // [3, 4, 5],
+    // [6, 7, 8],
+    states: {
+        // considers all possible combintaions
+        "[0, 1, 2]": {};
+        "[0, 3, 6]": {};
+        "[0, 4, 8]": {};
+        "[1, 4, 7]": {};
+        "[2, 5, 8]": {};
+        "[2, 4, 6]": {};
+        "[3, 4, 5]": {};
+        "[6, 7, 8]": {};
+    };
+}
+
+interface PerfectDeclarativeActorSchema {
+    // https://en.wikipedia.org/wiki/Tic-tac-toe#Combinatorics
+    // https://en.wikipedia.org/wiki/Tic-tac-toe#Strategy
+    states: {
+        startsFirst: {
+            states: {
+                // starts in a corner
+                0: {};
+                2: {};
+                6: {};
+                8: {};
+            };
+        };
+        startsSecond: {
+            states: {
+                competitorInACorner: {
+                    states: {
+                        // respond by taking the center!
+                        4: {};
+                    };
+                };
+                competitorInTheCenter: {
+                    states: {
+                        // respond by taking a corner!
+                        0: {};
+                        2: {};
+                        6: {};
+                        8: {};
+                    };
+                };
+                competitorInAnEdge: {
+                    states: {
+                        // respond by taking the center
+                        // or corner next to X
+                        // or edge opossite to X
+                        4: {};
+                        cornerNextToX: {};
+                        edgeOppositeToX: {};
+                    };
+                };
+            };
+        };
+    };
+}
