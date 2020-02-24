@@ -288,10 +288,10 @@ interface PerfectDeclarativeActorSchema {
         startsFirst: {
             states: {
                 // starts in a corner
-                0: {};
-                2: {};
-                6: {};
-                8: {};
+                1: {};
+                3: {};
+                5: {};
+                7: {};
             };
         };
         startsSecond: {
@@ -305,10 +305,10 @@ interface PerfectDeclarativeActorSchema {
                 competitorInTheCenter: {
                     states: {
                         // respond by taking a corner!
-                        0: {};
-                        2: {};
-                        6: {};
-                        8: {};
+                        1: {};
+                        3: {};
+                        5: {};
+                        7: {};
                     };
                 };
                 competitorInAnEdge: {
