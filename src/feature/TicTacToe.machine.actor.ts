@@ -253,75 +253,125 @@ export const ticTacToeGreedyActorMachine = Machine<
  * ============================================================================
  * DECLARATIVE ACTORS
  * ============================================================================
+ *
+ * There seems to be a couple ways of making a declarative ttt-agent:
+ *
+ * 1. You can describe an entire (min-max or a full) decision tree (which you better be generating)
+ * 2. Or you can try to describe a strategy for an agent to implement (which is lighter on nodes, but harder to design)
  */
 
-// [0,1,2]
-// [3,4,5]
-// [6,7,8]
-
-interface SimpleDeclarativeActorSchema {
-    // [0, 1, 2],
-    // [0, 3, 6],
-    // [0, 4, 8],
-    // [1, 4, 7],
-    // [2, 5, 8],
-    // [2, 4, 6],
-    // [3, 4, 5],
-    // [6, 7, 8],
-    states: {
-        // considers all possible combintaions
-        "[0, 1, 2]": {};
-        "[0, 3, 6]": {};
-        "[0, 4, 8]": {};
-        "[1, 4, 7]": {};
-        "[2, 5, 8]": {};
-        "[2, 4, 6]": {};
-        "[3, 4, 5]": {};
-        "[6, 7, 8]": {};
-    };
-}
-
-interface PerfectDeclarativeActorSchema {
+export const declarativePerfectActor = Machine({
     // https://en.wikipedia.org/wiki/Tic-tac-toe#Combinatorics
     // https://en.wikipedia.org/wiki/Tic-tac-toe#Strategy
+    initial: "preparingFirstTurn",
     states: {
-        startsFirst: {
+        preparingFirstTurn: {
+            initial: "waitingToStart",
             states: {
-                // starts in a corner
-                1: {};
-                3: {};
-                5: {};
-                7: {};
-            };
-        };
-        startsSecond: {
-            states: {
-                competitorInACorner: {
+                waitingToStart: {
+                    on: {
+                        PLAY: [
+                            {
+                                target: "startsFirst",
+                                cond: "checkIfStartingFirst",
+                            },
+                            "startsSecond",
+                        ],
+                    },
+                },
+                startsFirst: {
+                    on: { "": { target: "#continue", actions: "takeCorner" } },
+                },
+                startsSecond: {
                     states: {
-                        // respond by taking the center!
-                        4: {};
-                    };
-                };
-                competitorInTheCenter: {
-                    states: {
-                        // respond by taking a corner!
-                        1: {};
-                        3: {};
-                        5: {};
-                        7: {};
-                    };
-                };
-                competitorInAnEdge: {
-                    states: {
-                        // respond by taking the center
-                        // or corner next to X
-                        // or edge opossite to X
-                        4: {};
-                        cornerNextToX: {};
-                        edgeOppositeToX: {};
-                    };
-                };
-            };
-        };
-    };
-}
+                        opponentInACorner: {
+                            on: {
+                                "": {
+                                    target: "#continue",
+                                    actions: "takeCenter",
+                                },
+                            },
+                        },
+                        opponentInTheCenter: {
+                            on: {
+                                "": {
+                                    target: "#continue",
+                                    actions: "takeCorner",
+                                },
+                            },
+                        },
+                        opponentInAnEdge: {
+                            on: {
+                                "": [
+                                    {
+                                        target: "#continue",
+                                        actions: "takeCornerNextToX",
+                                        cond: () => Math.random() > 0.8,
+                                    },
+                                    {
+                                        target: "#continue",
+                                        actions: "takeEdgeOppositeToX",
+                                        cond: () => Math.random() > 0.8,
+                                    },
+                                    {
+                                        target: "#continue",
+                                        actions: "takeCenter",
+                                        cond: () => true,
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        continue: {
+            /**
+             * 1. Win: If the player has two in a row, they can place a third to get three in a row.
+             * 2. Block: If the opponent has two in a row, the player must play the third themselves to block the opponent.
+             * 3. Fork: Create an opportunity where the player has two ways to win (two non-blocked lines of 2).
+             * 4. Blocking an opponent's fork: If there is only one possible fork for the opponent, the player should block it. Otherwise, the player should block all forks in any way that simultaneously allows them to create two in a row. Otherwise, the player should create a two in a row to force the opponent into defending, as long as it doesn't result in them creating a fork. For example, if "X" has two opposite corners and "O" has the center, "O" must not play a corner in order to win. (Playing a corner in this scenario creates a fork for "X" to win.)
+             * 5. Center: A player marks the center. (If it is the first move of the game, playing on a corner gives the second player more opportunities to make a mistake and may therefore be the better choice, however, it makes no difference between perfect players.)
+             * 6. Opposite corner: If the opponent is in the corner, the player plays the opposite corner.
+             * 7. Empty corner: The player plays in a corner square.
+             * 8. Empty side: The player plays in a middle square on any of the 4 sides.
+             */
+            on: {
+                PLAY: [
+                    {
+                        actions: "win",
+                        cond: "checkSelf2InARow",
+                    },
+                    {
+                        actions: "block",
+                        cond: "checkOpponent2InARow",
+                    },
+                    {
+                        actions: "fork",
+                        cond: "check2NonBlockedLinesOf2",
+                    },
+                    {
+                        actions: "blockOpponentFork",
+                        cond: "checkOpponentsForks",
+                    },
+                    {
+                        actions: "center",
+                        cond: "checkCenterIsFree",
+                    },
+                    {
+                        actions: "oppositeCorner",
+                        cond: "checkOpponentIsInCorner",
+                    },
+                    {
+                        actions: "emptyCorner",
+                        cond: "checkFreeCorner",
+                    },
+                    {
+                        actions: "emptySide",
+                        cond: "checkFreeEdge",
+                    },
+                ],
+            },
+        },
+    },
+});
