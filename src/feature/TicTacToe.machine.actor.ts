@@ -19,20 +19,31 @@ enum EDGE {
     BOT = 8,
 }
 
+const ROWS = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+];
+
+const COLUMNS = [
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+];
+
+const DIAGONALS = [
+    [0, 4, 8],
+    [2, 4, 6],
+];
+
 const FIELD = {
     CORNERS: CORNER,
     EDGES: EDGE,
     CENTER: 4,
-    COMBINATIONS: [
-        [3, 4, 5],
-        [1, 4, 7],
-        [0, 4, 8],
-        [2, 4, 6],
-        [0, 1, 2],
-        [6, 7, 8],
-        [0, 3, 6],
-        [2, 5, 8],
-    ],
+    COMBINATIONS: [...ROWS, ...COLUMNS, ...DIAGONALS],
+    ROWS,
+    COLUMNS,
+    DIAGONALS,
 };
 
 function getOpponent(role: "x" | "0") {
@@ -562,8 +573,149 @@ export const declarativePerfectActor = Machine<
                         return false;
                 }
             },
-            checkMyFork: () => true,
-            checkOpponentsForks: () => true,
+            checkMyFork: (_, event) => {
+                switch (event.type) {
+                    case "PLAY":
+                        // if there are two intersecting rows, columns, or diagonals
+                        // with one of my pieces and two blanks,
+                        // =====================================
+                        //  [*,X,*]
+                        //  [X,_,_] <- 2 blanks on row 2
+                        //  [*,_,*]
+                        //     ^- 2 blanks on col 2
+                        //  cell 4 (center) is an intersection
+                        // =====================================
+                        // and if the intersecting space is empty
+                        const { field, role } = event;
+                        const oneTakenAnd2Blanks = (line: number[]) =>
+                            line.reduce(
+                                (acc, index) =>
+                                    field[index] === role
+                                        ? acc + 1
+                                        : field[index] === null
+                                        ? acc
+                                        : acc - 1,
+                                0,
+                            ) === 1;
+                        const rows = ROWS.filter(oneTakenAnd2Blanks);
+                        const columns = COLUMNS.filter(oneTakenAnd2Blanks);
+                        const diagonals = DIAGONALS.filter(oneTakenAnd2Blanks);
+
+                        if (rows.length) {
+                            for (let row of rows) {
+                                for (let index of row) {
+                                    for (let column of columns) {
+                                        const intersection = index in column;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                    for (let diag of diagonals) {
+                                        const intersection = index in diag;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (columns.length) {
+                            for (let column of columns) {
+                                for (let index of column) {
+                                    for (let diag of diagonals) {
+                                        const intersection = index in diag;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        return false;
+                    default:
+                        return false;
+                }
+            },
+            checkOpponentsForks: (_, event) => {
+                switch (event.type) {
+                    case "PLAY":
+                        // if there are two intersecting rows, columns, or diagonals
+                        // with one of my pieces and two blanks,
+                        // =====================================
+                        //  [*,X,*]
+                        //  [X,_,_] <- 2 blanks on row 2
+                        //  [*,_,*]
+                        //     ^- 2 blanks on col 2
+                        //  cell 4 (center) is an intersection
+                        // =====================================
+                        // and if the intersecting space is empty
+                        const { field, role } = event;
+                        const opponent = getOpponent(role);
+                        const oneTakenAnd2Blanks = (line: number[]) =>
+                            line.reduce(
+                                (acc, index) =>
+                                    field[index] === opponent
+                                        ? acc + 1
+                                        : field[index] === null
+                                        ? acc
+                                        : acc - 1,
+                                0,
+                            ) === 1;
+                        const rows = ROWS.filter(oneTakenAnd2Blanks);
+                        const columns = COLUMNS.filter(oneTakenAnd2Blanks);
+                        const diagonals = DIAGONALS.filter(oneTakenAnd2Blanks);
+
+                        if (rows.length) {
+                            for (let row of rows) {
+                                for (let index of row) {
+                                    for (let column of columns) {
+                                        const intersection = index in column;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                    for (let diag of diagonals) {
+                                        const intersection = index in diag;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (columns.length) {
+                            for (let column of columns) {
+                                for (let index of column) {
+                                    for (let diag of diagonals) {
+                                        const intersection = index in diag;
+                                        const intersectionEmpty =
+                                            field[index] === null;
+                                        if (intersection && intersectionEmpty) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        return false;
+                    default:
+                        return false;
+                }
+            },
             checkCenterIsFree: (_, event) => {
                 switch (event.type) {
                     case "PLAY":
