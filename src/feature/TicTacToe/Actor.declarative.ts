@@ -1,3 +1,4 @@
+import sample from "lodash.sample";
 import { Machine, SendExpr, sendParent, assign } from "xstate";
 import {
     SimpleActorEvent,
@@ -343,8 +344,8 @@ export const declarativePerfectActor = Machine<
                             value: field[CORNER.BOT_RIGHT],
                         },
                     ];
-                    const anyCorner = corners.find(
-                        ({ value }) => value === null,
+                    const anyCorner = sample(
+                        corners.filter(({ value }) => value === null),
                     ) as { index: number };
 
                     return {
@@ -530,29 +531,14 @@ export const declarativePerfectActor = Machine<
                 function(_, event) {
                     console.log("takeEmptySide");
                     const { field } = event as PLAY;
-                    switch (true) {
-                        case field[EDGE.TOP] === null:
-                            return {
-                                type: "TURN_MADE",
-                                selectedIndex: EDGE.TOP,
-                            };
-                        case field[EDGE.LEFT] === null:
-                            return {
-                                type: "TURN_MADE",
-                                selectedIndex: EDGE.LEFT,
-                            };
-                        case field[EDGE.RIGHT] === null:
-                            return {
-                                type: "TURN_MADE",
-                                selectedIndex: EDGE.RIGHT,
-                            };
-                        case field[EDGE.BOT] === null:
-                        default:
-                            return {
-                                type: "TURN_MADE",
-                                selectedIndex: EDGE.BOT,
-                            };
-                    }
+                    return {
+                        type: "TURN_MADE",
+                        selectedIndex: sample(
+                            [EDGE.TOP, EDGE.LEFT, EDGE.RIGHT, EDGE.BOT].filter(
+                                edge => field[edge] === null,
+                            ),
+                        ),
+                    };
                 } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
                 DELAY,
             ),
@@ -640,7 +626,7 @@ function findAFork(
         };
     }
 
-    return { type: "__ignore__" };
+    throw "should not be reachable!";
 }
 
 function findA2InARowWith1Free(field: ("x" | "0" | null)[], role: "x" | "0") {
