@@ -1,6 +1,5 @@
-import { Machine, SendExpr, sendParent } from "xstate";
+import { Machine, SendExpr, sendParent, assign } from "xstate";
 import {
-    SimpleActorContext,
     SimpleActorEvent,
     COLUMNS,
     CORNER,
@@ -29,6 +28,8 @@ import {
 // [3,4,5]
 // [6,7,8]
 
+const DELAY = { delay: 300 };
+
 interface DeclarativePerfectActorSchema {
     states: {
         preparingFirstTurn: {
@@ -49,8 +50,13 @@ interface DeclarativePerfectActorSchema {
     };
 }
 
+interface DeclarativePerfectActorContext {
+    field: ("x" | "0" | null)[];
+    role: "x" | "0";
+}
+
 export const declarativePerfectActor = Machine<
-    SimpleActorContext,
+    DeclarativePerfectActorContext,
     DeclarativePerfectActorSchema,
     SimpleActorEvent
 >(
@@ -60,7 +66,10 @@ export const declarativePerfectActor = Machine<
         // https://en.wikipedia.org/wiki/Tic-tac-toe#Strategy
         // https://doi.org/10.1016%2F0364-0213%2893%2990003-Q
         initial: "preparingFirstTurn",
-        context: {},
+        context: {
+            field: [null, null, null, null, null, null, null, null, null],
+            role: "x",
+        },
         states: {
             preparingFirstTurn: {
                 initial: "waitingToStart",
@@ -71,8 +80,12 @@ export const declarativePerfectActor = Machine<
                                 {
                                     target: "startsFirst",
                                     cond: "checkIfStartingFirst",
+                                    actions: "contextify",
                                 },
-                                "startsSecond",
+                                {
+                                    target: "startsSecond",
+                                    actions: "contextify",
+                                },
                             ],
                         },
                     },
@@ -146,6 +159,7 @@ export const declarativePerfectActor = Machine<
                 },
             },
             continue: {
+                id: "continue",
                 on: {
                     PLAY: [
                         {
@@ -211,65 +225,58 @@ export const declarativePerfectActor = Machine<
     {
         guards: {
             checkIfStartingFirst: (_, event) => {
+                console.log("checkIfStartingFirst");
                 const { role } = event as PLAY;
                 return role === "x";
             },
-            checkOpponentInACorner: (_, event) => {
-                const { field, role } = event as PLAY;
+            checkOpponentInACorner: ({ field, role }) => {
+                console.log("checkOpponentInACorner");
                 const opponent = getOpponent(role);
                 const opponentCorner = [
                     field[CORNER.TOP_LEFT],
                     field[CORNER.TOP_RIGHT],
                     field[CORNER.BOT_LEFT],
                     field[CORNER.BOT_RIGHT],
-                ].find(v => v === opponent);
-                return Boolean(opponentCorner);
+                ].some(v => v === opponent);
+                return opponentCorner;
             },
-            checkOpponentInTheCenter: (_, event) => {
-                const { field, role } = event as PLAY;
+            checkOpponentInTheCenter: ({ field, role }) => {
+                console.log("checkOpponentInTheCenter");
                 const opponent = getOpponent(role);
                 return field[FIELD.CENTER] === opponent;
             },
 
             checkMy2InARow: (_, event) => {
+                console.log("checkMy2InARow");
                 const { field, role } = event as PLAY;
-                const twoInARow = FIELD.COMBINATIONS.find(
-                    row =>
-                        row.reduce(
-                            (acc, index) =>
-                                field[index] === role ? acc + 1 : acc,
-                            0,
-                        ) === 2,
-                );
+                const twoInARow = findA2InARowWith1Free(field, role);
                 return Boolean(twoInARow);
             },
             checkOpponent2InARow: (_, event) => {
+                console.log("checkOpponent2InARow");
                 const { field, role } = event as PLAY;
                 const opponent = getOpponent(role);
-                const twoInARow = FIELD.COMBINATIONS.find(
-                    row =>
-                        row.reduce(
-                            (acc, index) =>
-                                field[index] === opponent ? acc + 1 : acc,
-                            0,
-                        ) === 2,
-                );
+                const twoInARow = findA2InARowWith1Free(field, opponent);
                 return Boolean(twoInARow);
             },
             checkMyFork: (_, event) => {
+                console.log("checkMyFork");
                 const { field, role } = event as PLAY;
                 return findAFork(field, role).type === "TURN_MADE";
             },
             checkOpponentsForks: (_, event) => {
+                console.log("checkOpponentsForks");
                 const { field, role } = event as PLAY;
                 const opponent = getOpponent(role);
                 return findAFork(field, opponent).type === "TURN_MADE";
             },
             checkCenterIsFree: (_, event) => {
+                console.log("checkCenterIsFree");
                 const { field } = event as PLAY;
                 return field[FIELD.CENTER] === null;
             },
             checkOpponentInACornerAndOppositeIsFree: (_, event) => {
+                console.log("checkOpponentInACornerAndOppositeIsFree");
                 // if my opponent is in a corner, and
                 // if the opposite corner is empty
                 const { field, role } = event as PLAY;
@@ -286,208 +293,269 @@ export const declarativePerfectActor = Machine<
                 );
             },
             checkFreeCorner: (_, event) => {
+                console.log("checkFreeCorner");
                 const { field } = event as PLAY;
                 const freeCorner = [
                     field[CORNER.TOP_LEFT],
                     field[CORNER.TOP_RIGHT],
                     field[CORNER.BOT_LEFT],
                     field[CORNER.BOT_RIGHT],
-                ].find(v => v === null);
-                return Boolean(freeCorner);
+                ].some(v => v === null);
+                return freeCorner;
             },
             checkFreeEdge: (_, event) => {
+                console.log("checkFreeEdge");
                 const { field } = event as PLAY;
                 const freeEdge = [
                     field[EDGE.TOP],
                     field[EDGE.LEFT],
                     field[EDGE.RIGHT],
                     field[EDGE.BOT],
-                ].find(v => v === null);
-                return Boolean(freeEdge);
+                ].some(v => v === null);
+                return freeEdge;
             },
         },
         actions: {
-            takeCorner: sendParent(function(_, event) {
-                const { field } = event as PLAY;
-                const corners = [
-                    {
-                        index: CORNER.TOP_LEFT,
-                        value: field[CORNER.TOP_LEFT],
-                    },
-                    {
-                        index: CORNER.TOP_RIGHT,
-                        value: field[CORNER.TOP_RIGHT],
-                    },
-                    {
-                        index: CORNER.BOT_LEFT,
-                        value: field[CORNER.BOT_LEFT],
-                    },
-                    {
-                        index: CORNER.BOT_RIGHT,
-                        value: field[CORNER.BOT_RIGHT],
-                    },
-                ];
-                const anyCorner = corners.find(
-                    ({ value }) => value === null,
-                ) as { index: number };
+            contextify: assign((_, event) => {
+                console.log("contextify");
+                const { field, role } = event as PLAY;
+                return { field, role };
+            }),
+            takeCorner: sendParent(
+                function(context, event) {
+                    console.log("takeCorner");
+                    const field = (event as PLAY).field || context.field;
+                    const corners = [
+                        {
+                            index: CORNER.TOP_LEFT,
+                            value: field[CORNER.TOP_LEFT],
+                        },
+                        {
+                            index: CORNER.TOP_RIGHT,
+                            value: field[CORNER.TOP_RIGHT],
+                        },
+                        {
+                            index: CORNER.BOT_LEFT,
+                            value: field[CORNER.BOT_LEFT],
+                        },
+                        {
+                            index: CORNER.BOT_RIGHT,
+                            value: field[CORNER.BOT_RIGHT],
+                        },
+                    ];
+                    const anyCorner = corners.find(
+                        ({ value }) => value === null,
+                    ) as { index: number };
 
-                return {
-                    type: "TURN_MADE",
-                    // warn: no typeguard for selectedIndex, even though
-                    // SimpleActorEvent models it as a number...
-                    selectedIndex: anyCorner.index,
-                };
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            takeCornerNextToX: sendParent(function(_, event) {
-                const { field } = event as PLAY;
-                // opponentInAnEdge [1,3,5,7]
-                // warn: the list of cases is exhaustive for the 3x3 use-case
-                // but does not consider a broken state
-                switch (true) {
-                    case field[EDGE.TOP] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex:
-                                Math.random() > 0.5
-                                    ? CORNER.TOP_LEFT
-                                    : CORNER.TOP_RIGHT,
-                        };
-                    case field[EDGE.LEFT] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex:
-                                Math.random() > 0.5
-                                    ? CORNER.TOP_LEFT
-                                    : CORNER.BOT_LEFT,
-                        };
-                    case field[EDGE.RIGHT] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex:
-                                Math.random() > 0.5
-                                    ? CORNER.TOP_RIGHT
-                                    : CORNER.BOT_RIGHT,
-                        };
-                    case field[EDGE.BOT] === "x":
-                    default:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex:
-                                Math.random() > 0.5
-                                    ? CORNER.BOT_LEFT
-                                    : CORNER.BOT_RIGHT,
-                        };
-                }
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            takeEdgeOppositeToX: sendParent(function(_, event) {
-                const { field } = event as PLAY;
-                // opponentInAnEdge [1,3,5,7]
-                // warn: the list of cases is exhaustive for the 3x3 use-case
-                // but does not consider a broken state
-                switch (true) {
-                    case field[EDGE.TOP] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: EDGE.BOT,
-                        };
-                    case field[EDGE.LEFT] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: EDGE.RIGHT,
-                        };
-                    case field[EDGE.RIGHT] === "x":
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: EDGE.LEFT,
-                        };
-                    case field[EDGE.BOT] === "x":
-                    default:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: EDGE.TOP,
-                        };
-                }
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
+                    return {
+                        type: "TURN_MADE",
+                        // warn: no typeguard for selectedIndex, even though
+                        // SimpleActorEvent models it as a number...
+                        selectedIndex: anyCorner.index,
+                    };
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            takeCornerNextToX: sendParent(
+                function({ field }) {
+                    console.log("takeCornerNextToX");
+                    // opponentInAnEdge [1,3,5,7]
+                    // warn: the list of cases is exhaustive for the 3x3 use-case
+                    // but does not consider a broken state
+                    switch (true) {
+                        case field[EDGE.TOP] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex:
+                                    Math.random() > 0.5
+                                        ? CORNER.TOP_LEFT
+                                        : CORNER.TOP_RIGHT,
+                            };
+                        case field[EDGE.LEFT] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex:
+                                    Math.random() > 0.5
+                                        ? CORNER.TOP_LEFT
+                                        : CORNER.BOT_LEFT,
+                            };
+                        case field[EDGE.RIGHT] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex:
+                                    Math.random() > 0.5
+                                        ? CORNER.TOP_RIGHT
+                                        : CORNER.BOT_RIGHT,
+                            };
+                        case field[EDGE.BOT] === "x":
+                        default:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex:
+                                    Math.random() > 0.5
+                                        ? CORNER.BOT_LEFT
+                                        : CORNER.BOT_RIGHT,
+                            };
+                    }
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            takeEdgeOppositeToX: sendParent(
+                function({ field }) {
+                    console.log("takeEdgeOppositeToX");
+                    // opponentInAnEdge [1,3,5,7]
+                    // warn: the list of cases is exhaustive for the 3x3 use-case
+                    // but does not consider a broken state
+                    switch (true) {
+                        case field[EDGE.TOP] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.BOT,
+                            };
+                        case field[EDGE.LEFT] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.RIGHT,
+                            };
+                        case field[EDGE.RIGHT] === "x":
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.LEFT,
+                            };
+                        case field[EDGE.BOT] === "x":
+                        default:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.TOP,
+                            };
+                    }
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
 
             // next
-            win: sendParent(function(_, event) {
-                const { field, role } = event as PLAY;
-                const selectedIndex = findAFreeSpotIn2InARow(field, role);
-                return {
-                    type: "TURN_MADE",
-                    selectedIndex,
-                };
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            block: sendParent(function(_, event) {
-                const { field, role } = event as PLAY;
-                const opponent = getOpponent(role);
-                const selectedIndex = findAFreeSpotIn2InARow(field, opponent);
-                return {
-                    type: "TURN_MADE",
-                    selectedIndex,
-                };
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            fork: sendParent(function(_, event) {
-                const { field, role } = event as PLAY;
-                return findAFork(field, role);
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            blockOpponentFork: sendParent(function(_, event) {
-                const { field, role } = event as PLAY;
-                const opponent = getOpponent(role);
-                return findAFork(field, opponent);
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            takeCenter: sendParent(function() {
-                return {
-                    type: "TURN_MADE",
-                    selectedIndex: FIELD.CENTER,
-                };
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            takeOppositeCorner: sendParent(function(_, event) {
-                // if my opponent is in a corner, and
-                // if the opposite corner is empty
-                const { field, role } = event as PLAY;
-                const opponent = getOpponent(role);
-                switch (true) {
-                    case field[CORNER.TOP_LEFT] === opponent &&
-                        field[CORNER.BOT_RIGHT] === null:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: CORNER.BOT_RIGHT,
-                        };
-                    case field[CORNER.TOP_RIGHT] === opponent &&
-                        field[CORNER.BOT_LEFT] === null:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: CORNER.BOT_LEFT,
-                        };
-                    case field[CORNER.BOT_LEFT] === opponent &&
-                        field[CORNER.TOP_RIGHT] === null:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: CORNER.TOP_RIGHT,
-                        };
-                    case field[CORNER.BOT_RIGHT] === opponent &&
-                        field[CORNER.TOP_LEFT] === null:
-                    default:
-                        return {
-                            type: "TURN_MADE",
-                            selectedIndex: CORNER.TOP_LEFT,
-                        };
-                }
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
-            takeEmptySide: sendParent(function(_, event) {
-                const { field } = event as PLAY;
-                const freeEdge = [
-                    field[EDGE.TOP],
-                    field[EDGE.LEFT],
-                    field[EDGE.RIGHT],
-                    field[EDGE.BOT],
-                ].findIndex(v => v === null);
-                return {
-                    type: "TURN_MADE",
-                    selectedIndex: freeEdge,
-                };
-            } as SendExpr<SimpleActorContext, SimpleActorEvent>),
+            win: sendParent(
+                function(_, event) {
+                    console.log("win");
+                    const { field, role } = event as PLAY;
+                    const selectedIndex = findAFreeSpotIn2InARow(field, role);
+                    return {
+                        type: "TURN_MADE",
+                        selectedIndex,
+                    };
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            block: sendParent(
+                function(_, event) {
+                    console.log("block");
+                    const { field, role } = event as PLAY;
+                    const opponent = getOpponent(role);
+                    const selectedIndex = findAFreeSpotIn2InARow(
+                        field,
+                        opponent,
+                    );
+                    return {
+                        type: "TURN_MADE",
+                        selectedIndex,
+                    };
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            fork: sendParent(
+                function(_, event) {
+                    console.log("fork");
+                    const { field, role } = event as PLAY;
+                    return findAFork(field, role);
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            blockOpponentFork: sendParent(
+                function(_, event) {
+                    console.log("blockOpponentFork");
+                    const { field, role } = event as PLAY;
+                    const opponent = getOpponent(role);
+                    return findAFork(field, opponent);
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            takeCenter: sendParent(
+                function() {
+                    console.log("takeCenter");
+                    return {
+                        type: "TURN_MADE",
+                        selectedIndex: FIELD.CENTER,
+                    };
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            takeOppositeCorner: sendParent(
+                function(_, event) {
+                    console.log("takeOppositeCorner");
+                    // if my opponent is in a corner, and
+                    // if the opposite corner is empty
+                    const { field, role } = event as PLAY;
+                    const opponent = getOpponent(role);
+                    switch (true) {
+                        case field[CORNER.TOP_LEFT] === opponent &&
+                            field[CORNER.BOT_RIGHT] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: CORNER.BOT_RIGHT,
+                            };
+                        case field[CORNER.TOP_RIGHT] === opponent &&
+                            field[CORNER.BOT_LEFT] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: CORNER.BOT_LEFT,
+                            };
+                        case field[CORNER.BOT_LEFT] === opponent &&
+                            field[CORNER.TOP_RIGHT] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: CORNER.TOP_RIGHT,
+                            };
+                        case field[CORNER.BOT_RIGHT] === opponent &&
+                            field[CORNER.TOP_LEFT] === null:
+                        default:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: CORNER.TOP_LEFT,
+                            };
+                    }
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
+            takeEmptySide: sendParent(
+                function(_, event) {
+                    console.log("takeEmptySide");
+                    const { field } = event as PLAY;
+                    switch (true) {
+                        case field[EDGE.TOP] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.TOP,
+                            };
+                        case field[EDGE.LEFT] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.LEFT,
+                            };
+                        case field[EDGE.RIGHT] === null:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.RIGHT,
+                            };
+                        case field[EDGE.BOT] === null:
+                        default:
+                            return {
+                                type: "TURN_MADE",
+                                selectedIndex: EDGE.BOT,
+                            };
+                    }
+                } as SendExpr<DeclarativePerfectActorContext, SimpleActorEvent>,
+                DELAY,
+            ),
         },
     },
 );
@@ -575,13 +643,23 @@ function findAFork(
     return { type: "__ignore__" };
 }
 
-function findAFreeSpotIn2InARow(field: ("x" | "0" | null)[], role: "x" | "0") {
-    const twoInARow = FIELD.COMBINATIONS.find(
+function findA2InARowWith1Free(field: ("x" | "0" | null)[], role: "x" | "0") {
+    const opponent = getOpponent(role);
+    return FIELD.COMBINATIONS.find(
         row =>
             row.reduce(
-                (acc, index) => (field[index] === role ? acc + 1 : acc),
+                (acc, index) =>
+                    field[index] === role
+                        ? acc + 1
+                        : field[index] === opponent
+                        ? acc - 1
+                        : acc,
                 0,
             ) === 2,
     ) as number[];
+}
+
+function findAFreeSpotIn2InARow(field: ("x" | "0" | null)[], role: "x" | "0") {
+    const twoInARow = findA2InARowWith1Free(field, role);
     return twoInARow.find(index => field[index] === null) as number;
 }

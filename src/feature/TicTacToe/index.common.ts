@@ -23,7 +23,7 @@ export enum EDGE {
     TOP = 1,
     LEFT = 3,
     RIGHT = 5,
-    BOT = 8,
+    BOT = 7,
 }
 
 export const ROWS = [

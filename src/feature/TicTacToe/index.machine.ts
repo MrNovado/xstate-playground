@@ -1,4 +1,3 @@
-import sample from "lodash.sample";
 import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
 import { SimpleActorEvent, FIELD } from "./index.common";
 import {
@@ -66,7 +65,7 @@ export const ticTacToeMachine = Machine<
         context: {
             actorTypes: [
                 "simple",
-                "greedy",
+                "perfect",
             ] as TicTacToeMachineActorTypesContext,
             // asserting an actor here
             // because it will be the first thing we'll create
