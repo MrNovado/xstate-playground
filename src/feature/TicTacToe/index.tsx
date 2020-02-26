@@ -3,6 +3,7 @@ import { useMachine } from "@xstate/react";
 import {
     ticTacToeMachine,
     getTurnOrder,
+    isPlayerTurn,
     TicTacToeMachineActorTypes,
 } from "./index.machine";
 
@@ -18,13 +19,21 @@ export default function TicTacToe() {
                 if (winCombo) {
                     const [winCell] = winCombo;
                     const winSymbol = field[winCell];
-                    return <h2>{`${winSymbol} wins!`}</h2>;
+                    return <h1>{`${winSymbol} wins!`}</h1>;
                 } else {
-                    return <h2>It's a draw!</h2>;
+                    return <h1>It's a draw!</h1>;
                 }
             }
             default:
-                return <h2>{getTurnOrder(field)}:</h2>;
+                return (
+                    <h1>
+                        {getTurnOrder(field)}
+                        {" : "}
+                        {isPlayerTurn(field, actorTypes)
+                            ? "Player!"
+                            : "AI"}
+                    </h1>
+                );
         }
     }, [state]);
 
@@ -87,7 +96,16 @@ export default function TicTacToe() {
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
                     <div
-                        className="border h-10 flex flex-col justify-center items-center"
+                        onClick={
+                            isPlayerTurn(field, actorTypes)
+                                ? () =>
+                                      send({
+                                          type: "TURN_MADE",
+                                          selectedIndex: index,
+                                      })
+                                : undefined
+                        }
+                        className="border h-10 flex flex-col justify-center items-center cursor-pointer"
                         style={{
                             backgroundColor:
                                 winCombo && winCombo.some(c => c === index)
@@ -114,6 +132,7 @@ function BehaviorSelector(props: {
             <option value="simple">{props.name} is simple</option>
             <option value="greedy">{props.name} is greedy</option>
             <option value="perfect">{props.name} is perfect</option>
+            <option value="player">{props.name} is player</option>
         </select>
     );
 }

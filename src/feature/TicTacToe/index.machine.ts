@@ -6,7 +6,11 @@ import {
 } from "./Actor.imperative";
 import { declarativePerfectActor as ticTacToePerfectActorMachine } from "./Actor.declarative";
 
-export type TicTacToeMachineActorTypes = "greedy" | "simple" | "perfect";
+export type TicTacToeMachineActorTypes =
+    | "greedy"
+    | "simple"
+    | "perfect"
+    | "player";
 type TicTacToeMachineActorTypesContext = [
     TicTacToeMachineActorTypes,
     TicTacToeMachineActorTypes,
@@ -30,8 +34,11 @@ interface TicTacToeMachineSchema {
             states: {
                 turn: {
                     states: {
+                        chooseFirst: {};
                         actor1: {};
                         actor2: {};
+                        player1: {};
+                        player2: {};
                     };
                 };
                 evaluate: {};
@@ -85,8 +92,22 @@ export const ticTacToeMachine = Machine<
                 initial: "turn",
                 states: {
                     turn: {
-                        initial: "actor1",
+                        initial: "chooseFirst",
                         states: {
+                            chooseFirst: {
+                                on: {
+                                    "": [
+                                        {
+                                            target: "player1",
+                                            cond: ({ actorTypes }) =>
+                                                actorTypes[0] === "player",
+                                        },
+                                        {
+                                            target: "actor1",
+                                        },
+                                    ],
+                                },
+                            },
                             actor1: {
                                 entry: "letActor1Play",
                                 on: {
@@ -121,6 +142,38 @@ export const ticTacToeMachine = Machine<
                                     ],
                                 },
                             },
+                            player1: {
+                                on: {
+                                    TURN_MADE: [
+                                        {
+                                            target: "#evaluate",
+                                            cond: (
+                                                { field },
+                                                { selectedIndex },
+                                            ) => field[selectedIndex] === null,
+                                        },
+                                        {
+                                            target: "player1",
+                                        },
+                                    ],
+                                },
+                            },
+                            player2: {
+                                on: {
+                                    TURN_MADE: [
+                                        {
+                                            target: "#evaluate",
+                                            cond: (
+                                                { field },
+                                                { selectedIndex },
+                                            ) => field[selectedIndex] === null,
+                                        },
+                                        {
+                                            target: "player2",
+                                        },
+                                    ],
+                                },
+                            },
                         },
                     },
                     evaluate: {
@@ -130,12 +183,24 @@ export const ticTacToeMachine = Machine<
                             CONTINUE: [
                                 {
                                     target: "turn.actor1",
-                                    cond: (_context, { turnOrder }) =>
+                                    cond: ({ actorTypes }, { turnOrder }) =>
+                                        actorTypes[0] !== "player" &&
                                         turnOrder === "x",
                                 },
                                 {
                                     target: "turn.actor2",
-                                    cond: (_context, { turnOrder }) =>
+                                    cond: ({ actorTypes }, { turnOrder }) =>
+                                        actorTypes[1] !== "player" &&
+                                        turnOrder === "0",
+                                },
+                                {
+                                    target: "turn.player1",
+                                    cond: (_, { turnOrder }) =>
+                                        turnOrder === "x",
+                                },
+                                {
+                                    target: "turn.player2",
+                                    cond: (_, { turnOrder }) =>
                                         turnOrder === "0",
                                 },
                             ],
@@ -282,6 +347,13 @@ export const ticTacToeMachine = Machine<
 
 export function getTurnOrder(field: ("x" | "0" | null)[]) {
     return field.filter(v => v === null).length % 2 === 0 ? "0" : "x";
+}
+
+export function isPlayerTurn(
+    field: ("x" | "0" | null)[],
+    actorTypes: TicTacToeMachineActorTypesContext,
+) {
+    return actorTypes[getTurnOrder(field) === "x" ? 0 : 1] === "player";
 }
 
 function selectActor(actorType: TicTacToeMachineActorTypes): Spawnable {
