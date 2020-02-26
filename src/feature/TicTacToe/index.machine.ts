@@ -1,18 +1,17 @@
 import sample from "lodash.sample";
 import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
-
+import { SimpleActorEvent, FIELD } from "./index.common";
 import {
     ticTacToeSimpleActorMachine,
     ticTacToeGreedyActorMachine,
-    TicTacToeSimpleActorMachineEvent,
-} from "./TicTacToe.machine.actor";
+} from "./Actor.imperative";
+import { declarativePerfectActor as ticTacToePerfectActorMachine } from "./Actor.declarative";
 
-type TicTacToeMachineActorTypes = "greedy" | "simple";
+export type TicTacToeMachineActorTypes = "greedy" | "simple" | "perfect";
 type TicTacToeMachineActorTypesContext = [
     TicTacToeMachineActorTypes,
     TicTacToeMachineActorTypes,
 ];
-const ticTacToeMachineActorTypes: ["greedy", "simple"] = ["greedy", "simple"];
 
 interface TicTacToeMachineContext {
     actorTypes: TicTacToeMachineActorTypesContext;
@@ -44,7 +43,7 @@ interface TicTacToeMachineSchema {
 }
 
 type TicTacToeMachineEvent =
-    | TicTacToeSimpleActorMachineEvent
+    | SimpleActorEvent
     | { type: "START" }
     | { type: "CONTINUE"; turnOrder: "x" | "0" }
     | { type: "END"; winCombo: number[] | null }
@@ -66,8 +65,8 @@ export const ticTacToeMachine = Machine<
         initial: "init",
         context: {
             actorTypes: [
-                sample(ticTacToeMachineActorTypes),
-                sample(ticTacToeMachineActorTypes),
+                "simple",
+                "greedy",
             ] as TicTacToeMachineActorTypesContext,
             // asserting an actor here
             // because it will be the first thing we'll create
@@ -169,6 +168,10 @@ export const ticTacToeMachine = Machine<
                     console.group("Round");
                     return null;
                 },
+                actor1Ref: ({ actorTypes }) =>
+                    spawn(selectActor(actorTypes[0]), "actor1"),
+                actor2Ref: ({ actorTypes }) =>
+                    spawn(selectActor(actorTypes[1]), "actor2"),
             }),
             changeBehavior: assign<
                 TicTacToeMachineContext,
@@ -195,19 +198,9 @@ export const ticTacToeMachine = Machine<
             >({
                 // https://github.com/davidkpiano/xstate/issues/849
                 actor1Ref: ({ actorTypes }) =>
-                    spawn(
-                        (actorTypes[0] === "simple"
-                            ? ticTacToeSimpleActorMachine
-                            : ticTacToeGreedyActorMachine) as Spawnable,
-                        "actor1",
-                    ),
+                    spawn(selectActor(actorTypes[0]), "actor1"),
                 actor2Ref: ({ actorTypes }) =>
-                    spawn(
-                        (actorTypes[1] === "simple"
-                            ? ticTacToeSimpleActorMachine
-                            : ticTacToeGreedyActorMachine) as Spawnable,
-                        "actor2",
-                    ),
+                    spawn(selectActor(actorTypes[1]), "actor2"),
             }),
 
             letActor1Play: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
@@ -253,17 +246,7 @@ export const ticTacToeMachine = Machine<
                     }
 
                     console.info(field, event.selectedIndex);
-                    const combinations = [
-                        [0, 1, 2],
-                        [3, 4, 5],
-                        [6, 7, 8],
-                        [0, 3, 6],
-                        [1, 4, 7],
-                        [2, 5, 8],
-                        [0, 4, 8],
-                        [2, 4, 6],
-                    ];
-                    const someCombo = combinations.find(combination => {
+                    const someCombo = FIELD.COMBINATIONS.find(combination => {
                         const [a, b, c] = combination;
                         if (
                             field[a] &&
@@ -300,4 +283,16 @@ export const ticTacToeMachine = Machine<
 
 export function getTurnOrder(field: ("x" | "0" | null)[]) {
     return field.filter(v => v === null).length % 2 === 0 ? "0" : "x";
+}
+
+function selectActor(actorType: TicTacToeMachineActorTypes): Spawnable {
+    switch (actorType) {
+        case "greedy":
+            return ticTacToeGreedyActorMachine;
+        case "perfect":
+            return ticTacToePerfectActorMachine;
+        case "simple":
+        default:
+            return ticTacToeSimpleActorMachine;
+    }
 }

@@ -1,6 +1,10 @@
 import React, { useMemo, useEffect } from "react";
 import { useMachine } from "@xstate/react";
-import { ticTacToeMachine, getTurnOrder } from "./TicTacToe.machine";
+import {
+    ticTacToeMachine,
+    getTurnOrder,
+    TicTacToeMachineActorTypes,
+} from "./index.machine";
 
 export default function TicTacToe() {
     const [state, send] = useMachine(ticTacToeMachine);
@@ -57,30 +61,28 @@ export default function TicTacToe() {
 
     return (
         <div className="v-list-1">
-            <select
+            <BehaviorSelector
+                name="X"
                 defaultValue={actorTypes[0]}
                 onChange={e =>
                     send({
                         type: "BEHAVIOR",
                         actor: "x",
-                        actorType: e.target.value as "simple" | "greedy",
+                        actorType: e.target.value as TicTacToeMachineActorTypes,
                     })
-                }>
-                <option value="simple">X is simple</option>
-                <option value="greedy">X is greedy</option>
-            </select>
-            <select
+                }
+            />
+            <BehaviorSelector
+                name="0"
                 defaultValue={actorTypes[1]}
                 onChange={e =>
                     send({
                         type: "BEHAVIOR",
                         actor: "0",
-                        actorType: e.target.value as "simple" | "greedy",
+                        actorType: e.target.value as TicTacToeMachineActorTypes,
                     })
-                }>
-                <option value="simple">0 is simple</option>
-                <option value="greedy">0 is greedy</option>
-            </select>
+                }
+            />
             {turnOrder}
             <div className="grid grid-cols-3">
                 {state.context.field.map((cell, index) => (
@@ -99,5 +101,19 @@ export default function TicTacToe() {
             </div>
             {controls}
         </div>
+    );
+}
+
+function BehaviorSelector(props: {
+    defaultValue: TicTacToeMachineActorTypes;
+    onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
+    name: string;
+}) {
+    return (
+        <select defaultValue={props.defaultValue} onChange={props.onChange}>
+            <option value="simple">{props.name} is simple</option>
+            <option value="greedy">{props.name} is greedy</option>
+            <option value="perfect">{props.name} is perfect</option>
+        </select>
     );
 }
