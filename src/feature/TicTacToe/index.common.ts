@@ -8,9 +8,9 @@ export interface SimpleActorContext {}
 
 export type PLAY = { type: "PLAY"; field: ("x" | "0" | null)[]; role: "x" | "0" };
 export type TURN_MADE = { type: "TURN_MADE"; selectedIndex: number };
-export type __ignore__ = { type: "__ignore__" };
+export type UNKNOWN_STATE = { type: "UNKNOWN_STATE"; origin: string; message: string };
 
-export type SimpleActorEvent = PLAY | TURN_MADE | __ignore__;
+export type SimpleActorEvent = PLAY | TURN_MADE | UNKNOWN_STATE;
 
 export enum CORNER {
     TOP_LEFT = 0,

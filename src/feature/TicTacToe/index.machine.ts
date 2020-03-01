@@ -1,5 +1,5 @@
 import { Machine, assign, spawn, send, Actor, Spawnable } from "xstate";
-import { SimpleActorEvent, FIELD } from "./index.common";
+import { SimpleActorEvent, FIELD, UNKNOWN_STATE } from "./index.common";
 import {
     ticTacToeSimpleActorMachine,
     ticTacToeGreedyActorMachine,
@@ -59,7 +59,7 @@ type TicTacToeMachineEvent =
           actor: "x" | "0";
           actorType: TicTacToeMachineActorTypes;
       }
-    | { type: "__ignore__" };
+    | UNKNOWN_STATE;
 
 export const ticTacToeMachine = Machine<
     TicTacToeMachineContext,
@@ -306,7 +306,11 @@ export const ticTacToeMachine = Machine<
             continueOrEnd: send<TicTacToeMachineContext, TicTacToeMachineEvent>(
                 ({ field }, event) => {
                     if (event.type !== "TURN_MADE") {
-                        return { type: "__ignore__" };
+                        return {
+                            type: "UNKNOWN_STATE",
+                            origin: "ticTacToeMachine",
+                            message: `continueOrEnd is invoked on a wrong event: expected "TURN_MADE", but received ${event.type}`,
+                        };
                     }
 
                     console.info(field, event.selectedIndex);

@@ -8,7 +8,7 @@ import {
     EDGE,
     FIELD,
     PLAY,
-    __ignore__,
+    UNKNOWN_STATE,
     ROWS,
     getOpponent,
 } from "./index.common";
@@ -629,7 +629,12 @@ function findAFork(
     // warn: throwing would break a contract of a guard
     // which will ommit the guard and throw 'Unable to elevate condition!'
     // throw "should not be reachable!";
-    return { type: "__ignore__" };
+    return {
+        type: "UNKNOWN_STATE",
+        origin: "declarativePerfectActor",
+        message: `findAFork is invoked, but all options are exhausted without resolution!
+        either condition-guard didn't work, or the event is wrong, or the flow is completely broken`,
+    };
 }
 
 function findA2InARowWith1Free(field: ("x" | "0" | null)[], role: "x" | "0") {

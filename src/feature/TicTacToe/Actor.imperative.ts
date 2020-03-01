@@ -84,12 +84,13 @@ export const ticTacToeSimpleActorMachine = Machine<
                             selectedIndex,
                         };
                     default:
-                        return { type: "__ignore__" };
+                        return {
+                            type: "UNKNOWN_STATE",
+                            origin: "ticTacToeSimpleActorMachine-simple",
+                            message: `turn is invoked on a wrong event: expected "PLAY", but received ${event.type}`,
+                        };
                 }
-            } as SendExpr<
-                SimpleActorContext,
-                SimpleActorEvent
-            >,
+            } as SendExpr<SimpleActorContext, SimpleActorEvent>,
             { delay: 300 },
         ),
     },
@@ -230,12 +231,13 @@ export const ticTacToeGreedyActorMachine = Machine<
                         };
                     }
                     default:
-                        return { type: "__ignore__" };
+                        return {
+                            type: "UNKNOWN_STATE",
+                            origin: "ticTacToeSimpleActorMachine-greedy",
+                            message: `turn is invoked on a wrong event: expected "PLAY", but received ${event.type}`,
+                        };
                 }
-            } as SendExpr<
-                SimpleActorContext,
-                SimpleActorEvent
-            >,
+            } as SendExpr<SimpleActorContext, SimpleActorEvent>,
             { delay: 300 },
         ),
     },
