@@ -10,6 +10,7 @@
  * ====== not an issue?
  * # What about strict state2Event mapping?
  * # What about strict event2Transition mapping?
+ * # What about strict exhaustive 'matches' interface? 
  */
 
 function Actor(props) {
@@ -106,3 +107,18 @@ function Machine(props) {
   * <StateNode name="z"/>
   * ]
   */
+
+  /**
+   * Generating exhaustive strict state-matching interface:
+   * 
+   * {
+   *    a: { ab: {}, ac: {}, ad: {} },
+   *    b: { bc: {} },
+   *    d: { dd: {} }
+   * }
+   * 
+   * type ExhaustivePatterns = [a] | [a, ab] | [a, ac] | [a, ad] | [b] | [b, bc] | ...;
+   * export default matches 
+   *    = (pattern: ExhaustivePatterns)
+   *    => xstate.matches(pattern.join("."));
+   */
