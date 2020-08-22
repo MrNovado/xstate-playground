@@ -89,13 +89,13 @@ export default function Jumping() {
   console.info(state);
 
   React.useEffect(
-    function reactions() {
+    function doEffects() {
       switch (state.doEffect?.kind) {
         case "!prepare-jump":
           {
             const risingTo = 200;
-            const risingTime = 5 * 1000;
-            const tickTime = 1000;
+            const risingTime = 1 * 1000;
+            const tickTime = 100;
 
             const riseTicks = risingTime / tickTime;
             const riseInc = risingTo / riseTicks;
@@ -109,12 +109,18 @@ export default function Jumping() {
               switch (true) {
                 // rised
                 case tickTracker < riseTicks:
-                  send({ kind: "rised", inc: riseInc });
+                  send({
+                    kind: "rised",
+                    inc: riseInc,
+                  });
                   break;
 
                 // falled
                 default:
-                  send({ kind: "falled", dec: riseInc * tickTracker * 0.1 });
+                  send({
+                    kind: "falled",
+                    dec: riseInc * (tickTracker - riseTicks) * 0.4,
+                  });
                   break;
               }
             }, tickTime);
@@ -153,6 +159,7 @@ export default function Jumping() {
             height: 20,
             left: "50%",
             backgroundColor: "pink",
+            boxShadow: "0 0 1px 1px black",
           }}
         />
       </div>
