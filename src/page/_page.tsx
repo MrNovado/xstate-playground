@@ -3,7 +3,8 @@ import { useLocation, useHistory } from "react-router-dom";
 
 export function PageContainer(props: { children: React.ReactNode }) {
     const { pathname } = useLocation();
-    const { goBack } = useHistory();
+    const history = useHistory();
+    const goBack = () => history.replace('/');
     return (
         <div>
             <div className="v-list-1">
