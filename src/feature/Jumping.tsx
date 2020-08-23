@@ -93,9 +93,9 @@ export default function Jumping() {
       switch (state.doEffect?.kind) {
         case "!prepare-jump":
           {
-            const risingTo = 200;
-            const risingTime = 1 * 1000;
-            const tickTime = 100;
+            const risingTo = 100;
+            const risingTime = .2 * 1000;
+            const tickTime = 10;
 
             const riseTicks = risingTime / tickTime;
             const riseInc = risingTo / riseTicks;
@@ -137,6 +137,18 @@ export default function Jumping() {
     },
     [state.doEffect],
   );
+
+  const effectRef = React.useRef<number | null>(null);
+  effectRef.current = state.jumpEffectId;
+  React.useEffect(function onMount() {
+    // do once when mounted
+    console.log("mount");
+    return function onUnMount() {
+      // do once when un-mounted
+      console.log("unmount");
+      clearInterval(effectRef.current || 0);
+    };
+  }, []);
 
   return (
     <div className="v-list-1">
