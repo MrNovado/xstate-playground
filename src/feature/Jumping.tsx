@@ -10,19 +10,19 @@ type State = {
     | null;
 };
 
-type Actions =
+type Requests =
   | { kind: "jump-requested" }
   | { kind: "jump-started"; jumpEffectId: number }
   | { kind: "rised"; inc: number }
   | { kind: "falled"; dec: number }
   | { kind: "grounded" };
 
-function reducer(state: State, action: Actions): State {
-  console.warn(action.kind);
+function reducer(state: State, request: Requests): State {
+  console.warn(request.kind);
 
   switch (state.phase) {
     case "idling":
-      switch (action.kind) {
+      switch (request.kind) {
         case "jump-requested":
           return {
             ...state,
@@ -32,22 +32,22 @@ function reducer(state: State, action: Actions): State {
       }
 
     case "jump-preparing": {
-      switch (action.kind) {
+      switch (request.kind) {
         case "jump-started":
           return {
             ...state,
             phase: "jumping",
-            jumpEffectId: action.jumpEffectId,
+            jumpEffectId: request.jumpEffectId,
           };
       }
     }
 
     case "jumping":
-      switch (action.kind) {
+      switch (request.kind) {
         case "rised":
-          return { ...state, Y: state.Y + action.inc };
+          return { ...state, Y: state.Y + request.inc };
         case "falled":
-          const fallTo = state.Y - action.dec;
+          const fallTo = state.Y - request.dec;
           const goingUnderGround = fallTo < 0;
 
           if (goingUnderGround) {
@@ -62,7 +62,7 @@ function reducer(state: State, action: Actions): State {
       }
 
     case "grounding":
-      switch (action.kind) {
+      switch (request.kind) {
         case "grounded":
           return {
             ...state,
@@ -74,7 +74,7 @@ function reducer(state: State, action: Actions): State {
       }
   }
 
-  console.error(action.kind, "ignored");
+  console.error(request.kind, "ignored");
   return state;
 }
 
